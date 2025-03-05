@@ -1,0 +1,7 @@
+To create a preview image:
+
+1. Open the standalone.html file in your browser
+2. Take a screenshot (Cmd+Shift+4, then Space to capture a window)
+3. Save the screenshot as preview.png in this directory
+
+This will provide a visual preview of the Matrix animation in the README. 
