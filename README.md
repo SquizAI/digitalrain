@@ -2,7 +2,7 @@
 
 A dynamic Matrix-style animation that creates a stunning digital rain effect behind your applications.
 
-![DigitalRain Preview](screenshot.png)
+![DigitalRain Preview](DigitalRain.png)
 
 ## Features
 

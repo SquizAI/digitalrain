@@ -17,7 +17,7 @@ keep_files=(
   "icon.png"
   "icon.icns"
   "app-icon.png"
-  "screenshot.png"
+  "DigitalRain.png"
   "build/"
   "node_modules/"
   "dist/"
