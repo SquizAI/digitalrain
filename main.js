@@ -3,8 +3,8 @@ const path = require('path');
 const fs = require('fs');
 const { exec } = require('child_process');
 
-// Disable hardware acceleration to prevent GPU crashes
-app.disableHardwareAcceleration();
+// GPU acceleration enabled for better canvas rendering performance
+// Recovery from GPU crashes handled by 'gpu-process-crashed' event below
 
 // Global variables
 let tray = null;
@@ -12,11 +12,14 @@ let backgroundWindows = [];
 let isQuitting = false;
 let isRefreshing = false;
 let displayChangeTimeout = null;
+let positionCheckInterval = null;
+let visibilityCheckInterval = null;
 const isDebugMode = process.env.DEBUG_MODE === 'true';
+const log = isDebugMode ? console.log.bind(console) : () => {};
 
 // Log startup information
-console.log(`Starting DigitalRain (Debug Mode: ${isDebugMode})`);
-console.log(`Platform: ${process.platform}, Electron: ${process.versions.electron}`);
+log(`Starting DigitalRain (Debug Mode: ${isDebugMode})`);
+log(`Platform: ${process.platform}, Electron: ${process.versions.electron}`);
 
 // Auto launch at startup
 const setupAutoLaunch = () => {
@@ -32,7 +35,7 @@ const setupAutoLaunch = () => {
     // Also set the preference in app configuration
     app.setName('DigitalRain');
     
-    console.log("Auto-launch configured successfully");
+    log("Auto-launch configured successfully");
   } catch (error) {
     console.error('Error setting up auto-launch:', error);
   }
@@ -75,7 +78,7 @@ function createProcessFinderScript(action) {
 
 // Create a single window for the matrix animation
 function createMatrixWindow(display) {
-  console.log(`Creating window for display: ${display.bounds.width}x${display.bounds.height}`);
+  log(`Creating window for display: ${display.bounds.width}x${display.bounds.height}`);
   
   // Create window with dimensions to match the display
   const { x, y, width, height } = display.bounds;
@@ -89,12 +92,13 @@ function createMatrixWindow(display) {
     frame: false,
     show: false,
     skipTaskbar: true,
-    transparent: true,
+    transparent: false,
+    backgroundColor: '#000000',
     hasShadow: false,
     roundedCorners: false,
     webPreferences: {
-      nodeIntegration: true,
-      contextIsolation: false,
+      nodeIntegration: false,
+      contextIsolation: true,
     },
   });
 
@@ -161,7 +165,7 @@ function fixMacOSWindowVisibility() {
     return;
   }
   
-  console.log("Attempting to fix macOS window visibility...");
+  log("Attempting to fix macOS window visibility...");
   
   // First try standard Electron methods
   backgroundWindows.forEach(win => {
@@ -181,21 +185,23 @@ function fixMacOSWindowVisibility() {
     const script = createProcessFinderScript('set visible of appProcess to true\n      set windowLevel of every window of appProcess to -2147483621');
     
     exec(`osascript -e '${script}'`, (error, stdout, stderr) => {
+      if (isQuitting) return;
       if (error) {
-        console.error('Error running AppleScript for visibility fix:', error);
+        log('Error running AppleScript for visibility fix:', error);
       } else {
-        console.log('AppleScript visibility fix succeeded');
+        log('AppleScript visibility fix succeeded');
       }
     });
-    
+
     // Additional script to bring windows to front
     const bringToFrontScript = createProcessFinderScript('set index of every window of appProcess to 1');
-    
+
     exec(`osascript -e '${bringToFrontScript}'`, (error, stdout, stderr) => {
+      if (isQuitting) return;
       if (error) {
-        console.error('Error running AppleScript to bring windows to front:', error);
+        log('Error running AppleScript to bring windows to front:', error);
       } else {
-        console.log('AppleScript bring to front succeeded');
+        log('AppleScript bring to front succeeded');
       }
     });
   } catch (error) {
@@ -207,7 +213,7 @@ function fixMacOSWindowVisibility() {
 function createTray() {
   try {
     const iconPath = path.join(__dirname, 'icon.png');
-    console.log(`Loading tray icon from: ${iconPath}`);
+    log(`Loading tray icon from: ${iconPath}`);
     
     if (!fs.existsSync(iconPath)) {
       console.error('Tray icon not found at:', iconPath);
@@ -264,7 +270,7 @@ function createTray() {
     ]);
     
     tray.setContextMenu(contextMenu);
-    console.log("Tray icon created successfully");
+    log("Tray icon created successfully");
   } catch (error) {
     console.error('Error creating tray:', error);
   }
@@ -305,7 +311,7 @@ function verifyWindowPositions() {
   
   // Check if we have the correct number of windows
   if (backgroundWindows.length !== displays.length) {
-    console.log(`Window count mismatch: ${backgroundWindows.length} windows for ${displays.length} displays`);
+    log(`Window count mismatch: ${backgroundWindows.length} windows for ${displays.length} displays`);
     recreateMatrixWindows();
     return;
   }
@@ -333,28 +339,27 @@ function verifyWindowPositions() {
         bounds.y !== displayBounds.y || 
         bounds.width !== displayBounds.width || 
         bounds.height !== displayBounds.height) {
-      console.log(`Window ${index} has incorrect bounds: ${JSON.stringify(bounds)} vs ${JSON.stringify(displayBounds)}`);
+      log(`Window ${index} has incorrect bounds: ${JSON.stringify(bounds)} vs ${JSON.stringify(displayBounds)}`);
       needsFix = true;
     }
   });
   
   // If any issues were found, recreate all windows
   if (needsFix) {
-    console.log("Window position issues detected, recreating all windows");
+    log("Window position issues detected, recreating all windows");
     recreateMatrixWindows();
   } else {
-    console.log("All window positions verified correctly");
+    log("All window positions verified correctly");
   }
 }
 
 // Setup a periodic window position check
 function setupPositionChecker() {
-  // Check positions every 5 minutes
-  setInterval(() => {
+  positionCheckInterval = setInterval(() => {
     if (!isRefreshing && !isQuitting) {
       verifyWindowPositions();
     }
-  }, 300000); // 5 minutes
+  }, 300000);
 }
 
 // Set up the app
@@ -387,16 +392,17 @@ app.whenReady().then(() => {
     // Set up periodic position checker
     setupPositionChecker();
     
-    console.log('Application initialized successfully');
+    log('Application initialized successfully');
   }, 1000);
 });
 
 // Handle app quit
 app.on('before-quit', () => {
   isQuitting = true;
-  
-  // Unregister all shortcuts
   globalShortcut.unregisterAll();
+  if (positionCheckInterval) clearInterval(positionCheckInterval);
+  if (visibilityCheckInterval) clearInterval(visibilityCheckInterval);
+  if (displayChangeTimeout) clearTimeout(displayChangeTimeout);
 });
 
 // Handle GPU process crashes
@@ -412,7 +418,7 @@ process.on('unhandledRejection', (reason) => {
 
 // Create a windows for each display
 function recreateMatrixWindows() {
-  console.log("Recreating matrix windows...");
+  log("Recreating matrix windows...");
   
   // Close any existing windows
   if (backgroundWindows.length > 0) {
@@ -430,11 +436,11 @@ function recreateMatrixWindows() {
   
   // Get all displays
   const displays = screen.getAllDisplays();
-  console.log(`Found ${displays.length} displays`);
+  log(`Found ${displays.length} displays`);
   
   // Create a window for each display
   displays.forEach((display, i) => {
-    console.log(`Creating window for display ${i+1}: ${display.bounds.width}x${display.bounds.height}`);
+    log(`Creating window for display ${i+1}: ${display.bounds.width}x${display.bounds.height}`);
     
     try {
       const win = createMatrixWindow(display);
@@ -448,7 +454,7 @@ function recreateMatrixWindows() {
 
 // Handle display changes with debounce
 function handleDisplayChange() {
-  console.log("Display change detected");
+  log("Display change detected");
   
   // Clear any existing timeout
   if (displayChangeTimeout) {
@@ -459,13 +465,13 @@ function handleDisplayChange() {
   
   // Don't recreate if already refreshing
   if (isRefreshing) {
-    console.log("Already refreshing, ignoring display change");
+    log("Already refreshing, ignoring display change");
     return;
   }
   
   // Set a much longer timeout to avoid constant window recreation
   displayChangeTimeout = setTimeout(() => {
-    console.log("Display change debounce complete, recreating windows");
+    log("Display change debounce complete, recreating windows");
     
     // Set refreshing flag
     isRefreshing = true;
@@ -477,7 +483,7 @@ function handleDisplayChange() {
     setTimeout(() => {
       isRefreshing = false;
       displayChangeTimeout = null;
-      console.log("Window recreation complete");
+      log("Window recreation complete");
     }, 2000);
     
   }, 30000); // Much longer delay (30 seconds) to avoid frequent reloads
@@ -506,15 +512,11 @@ app.on('window-all-closed', () => {
 // Add a function to periodically check window visibility
 // This helps address issues with window hiding when spaces are switched
 function setupVisibilityChecker() {
-  // Check visibility every minute
-  setInterval(() => {
-    // Only check if we have windows and aren't in the middle of a refresh
-    if (backgroundWindows.length > 0 && !isRefreshing) {
+  visibilityCheckInterval = setInterval(() => {
+    if (backgroundWindows.length > 0 && !isRefreshing && !isQuitting) {
       const allHidden = backgroundWindows.every(win => !win.isVisible());
-      
-      // If all windows are hidden but we didn't hide them intentionally, show them
-      if (allHidden && !isQuitting) {
-        console.log("Windows were unexpectedly hidden, restoring visibility");
+      if (allHidden) {
+        log("Windows were unexpectedly hidden, restoring visibility");
         backgroundWindows.forEach(win => {
           if (!win.isDestroyed()) {
             win.show();
@@ -522,5 +524,5 @@ function setupVisibilityChecker() {
         });
       }
     }
-  }, 60000); // Check every minute
+  }, 60000);
 }

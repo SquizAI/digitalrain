@@ -6,47 +6,42 @@ document.addEventListener('DOMContentLoaded', () => {
     // Set canvas to full screen
     function resizeCanvas() {
         try {
-            console.log("Resizing canvas...");
-            
-            // Use device pixel ratio for crisp rendering on high-DPI displays
-            const dpr = window.devicePixelRatio || 1;
-            
+            // Use 1x resolution — Retina scaling is wasted on a background wallpaper
+            // and quadruples pixel work (e.g. 5120×2880 vs 2560×1440)
+            const dpr = 1;
+
             // Get window dimensions
             const windowWidth = window.innerWidth;
             const windowHeight = window.innerHeight;
-            
-            console.log(`Window dimensions: ${windowWidth}x${windowHeight}, DPR: ${dpr}`);
-            
-            // Set canvas dimensions (physical pixels)
-            canvas.width = windowWidth * dpr;
-            canvas.height = windowHeight * dpr;
-            
+
+            // Set canvas dimensions (1:1 with CSS pixels)
+            canvas.width = windowWidth;
+            canvas.height = windowHeight;
+
             // Set CSS dimensions (logical pixels)
             canvas.style.width = '100%';
             canvas.style.height = '100%';
-            
+
             // Ensure canvas is visible and correctly positioned
             canvas.style.position = 'fixed';
             canvas.style.top = '0';
             canvas.style.left = '0';
             canvas.style.margin = '0';
             canvas.style.padding = '0';
-            canvas.style.zIndex = '0'; // Set to 0 to ensure visibility
+            canvas.style.zIndex = '0';
             canvas.style.display = 'block';
-            
+
             // Make sure it's not hidden
             canvas.style.visibility = 'visible';
             canvas.style.opacity = '1';
-            
-            // Reset transform matrix and apply the device pixel ratio scaling
+
+            // Reset transform matrix (no DPR scaling needed at 1x)
             ctx.setTransform(1, 0, 0, 1, 0, 0);
-            ctx.scale(dpr, dpr);
             
             // Adjust the drawing style for better visibility
             ctx.font = '14px "Courier New", monospace';
             ctx.textBaseline = 'top';
             
-            console.log(`Canvas resized to ${canvas.width}x${canvas.height} pixels`);
         } catch (error) {
             console.error('Error resizing canvas:', error);
         }
@@ -66,11 +61,11 @@ document.addEventListener('DOMContentLoaded', () => {
         SHOW_TRAILS: true,
         
         // Performance settings
-        DROP_DENSITY: 0.6,
-        MAX_DROPS: 200,
-        MIN_TRAIL_LENGTH: 12,
-        MAX_TRAIL_LENGTH: 35,
-        SKIP_FRAMES: 1,
+        DROP_DENSITY: 0.4,
+        MAX_DROPS: 120,
+        MIN_TRAIL_LENGTH: 8,
+        MAX_TRAIL_LENGTH: 22,
+        TARGET_FPS: 20,
         
         // Animation settings
         SPEED_MULTIPLIER: 1.2,
@@ -84,14 +79,8 @@ document.addEventListener('DOMContentLoaded', () => {
         // Direction settings
         TYPING_DIRECTION: 'bottom-up',
         
-        // Glow effects
-        GLOW_INTENSITY: 2,  // Reduced for crisper text
-        GLOW_COLOR: '#0047AB',
-        
         // Clarity settings
-        CRISP_TEXT: true,
-        REDUCED_BLUR: true,
-        HIGH_CONTRAST: true
+        CRISP_TEXT: true
     };
 
     // AI-related words
@@ -138,14 +127,37 @@ document.addEventListener('DOMContentLoaded', () => {
     let drops = [];
     let lastTime = performance.now();
     let animationFrameId = null;
-    let frameCount = 0;
     let globalTime = 0;
     let paused = false;
 
-    // Error logging
+    // Reusable buffer to avoid per-frame array allocation
+    let charPositionsBuffer = [];
+
+    // Color string cache to avoid per-frame template literal allocation
+    const colorCache = new Map();
+    function rgba(r, g, b, a) {
+        r = Math.round(r) | 0;
+        g = Math.round(g) | 0;
+        b = Math.round(b) | 0;
+        a = Math.round(a * 100) / 100;
+        const key = (r << 24) | (g << 16) | (b << 8) | (a * 255 | 0);
+        let cached = colorCache.get(key);
+        if (!cached) {
+            cached = `rgba(${r}, ${g}, ${b}, ${a})`;
+            colorCache.set(key, cached);
+        }
+        return cached;
+    }
+
+    // Error logging (throttled to max 1 per second)
+    let lastErrorTime = 0;
     function logError(message, data = {}) {
+        const now = performance.now();
+        if (now - lastErrorTime < 1000) return;
+        lastErrorTime = now;
+
         console.error(`[MATRIX ERROR] ${message}`, data);
-        
+
         // Display error on screen
         const errorDiv = document.getElementById('matrix-error-log') || createErrorDisplay();
         const timestamp = new Date().toISOString();
@@ -153,7 +165,7 @@ document.addEventListener('DOMContentLoaded', () => {
         errorItem.textContent = `${timestamp}: ${message}`;
         errorItem.style.color = 'red';
         errorDiv.appendChild(errorItem);
-        
+
         // Limit number of errors shown
         while (errorDiv.children.length > 10) {
             errorDiv.removeChild(errorDiv.firstChild);
@@ -212,9 +224,6 @@ document.addEventListener('DOMContentLoaded', () => {
         // Random speed variation
         const speedVariation = Math.random() * 1.5 + 0.8;
         
-        // Random glow intensity
-        const glowIntensity = Math.random() * CONFIG.GLOW_INTENSITY + (CONFIG.GLOW_INTENSITY / 2);
-        
         // Random blue color variation
         const baseColor = {
             r: Math.floor(Math.random() * 30),      // 0-30 (darker blue)
@@ -236,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
             typingState: 'typing',
             pauseTimer: 0,
             lastTypingTime: 0,
-            glowIntensity: glowIntensity,
             baseColor: baseColor,
             pulsePhase: Math.random() * Math.PI * 2,
             pulseSpeed: Math.random() * 0.005 + 0.002,
@@ -262,7 +270,6 @@ document.addEventListener('DOMContentLoaded', () => {
                 drops.push(createDrop());
             }
             
-            console.log(`Initialized ${drops.length} drops`);
         } catch (error) {
             logError(`Error initializing drops: ${error.message}`);
             console.error(error);
@@ -286,16 +293,20 @@ document.addEventListener('DOMContentLoaded', () => {
         }
     }
 
-    // Set font with improved clarity
+    // Pre-build font strings to avoid per-frame string allocation + parsing
+    const fontStrings = {};
+    for (let s = CONFIG.MIN_FONT_SIZE; s <= CONFIG.MAX_FONT_SIZE; s++) {
+        fontStrings[s] = `bold ${s}px monospace`;
+    }
+    let currentFontKey = null;
+
+    // Set font with caching to skip redundant assignments
     function setFont(fontSize) {
-        if (CONFIG.CRISP_TEXT) {
-            // Use pixel font or monospace with no antialiasing for maximum crispness
-            ctx.font = `bold ${fontSize}px monospace`;
+        if (fontSize !== currentFontKey) {
+            ctx.font = fontStrings[fontSize] || `bold ${fontSize}px monospace`;
             ctx.textBaseline = 'top';
-            ctx.textAlign = 'center';  // Center alignment for better positioning
-        } else {
-            ctx.font = `bold ${fontSize}px monospace`;
-            ctx.textBaseline = 'top';
+            ctx.textAlign = 'center';
+            currentFontKey = fontSize;
         }
     }
 
@@ -304,34 +315,33 @@ document.addEventListener('DOMContentLoaded', () => {
         try {
             // Exit if paused
             if (paused) {
-                console.log("Animation is paused");
                 return;
             }
-            
-            // Skip frames for better performance
-            frameCount++;
-            if (frameCount % CONFIG.SKIP_FRAMES !== 0) {
+
+            // Frame rate limiter — skip if not enough time has elapsed
+            const targetFrameTime = 1000 / CONFIG.TARGET_FPS;
+            const elapsed = currentTime - lastTime;
+            if (elapsed < targetFrameTime) {
                 animationFrameId = requestAnimationFrame(draw);
                 return;
             }
 
-            // Calculate delta time
-            const deltaTime = currentTime - lastTime;
-            lastTime = currentTime;
+            // Calculate delta time (clamped to avoid spiral after tab switch)
+            const deltaTime = Math.min(elapsed, targetFrameTime * 3);
+            lastTime = currentTime - (elapsed % targetFrameTime);
             globalTime += deltaTime;
 
-            // Get canvas dimensions safely
-            const canvasWidth = canvas.width / (window.devicePixelRatio || 1);
-            const canvasHeight = canvas.height / (window.devicePixelRatio || 1);
+            // Get canvas dimensions (1:1 with CSS pixels, no DPR division needed)
+            const canvasWidth = canvas.width;
+            const canvasHeight = canvas.height;
 
-            // Clear screen with perfect black for better contrast
-            if (CONFIG.HIGH_CONTRAST) {
-                ctx.fillStyle = 'rgb(0, 0, 0)';
-                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            } else {
-                ctx.fillStyle = 'rgba(0, 0, 0, 0.95)';
-                ctx.fillRect(0, 0, canvasWidth, canvasHeight);
-            }
+            // Clear screen with solid black
+            ctx.fillStyle = 'rgb(0, 0, 0)';
+            ctx.fillRect(0, 0, canvasWidth, canvasHeight);
+
+            // Disable shadow globally — replaced with color brightening for glow effect
+            ctx.shadowBlur = 0;
+            ctx.shadowColor = 'transparent';
 
             // Check if drops array exists
             if (!drops || !Array.isArray(drops) || drops.length === 0) {
@@ -360,13 +370,19 @@ document.addEventListener('DOMContentLoaded', () => {
                         drop.typingState = 'typing';
                         drop.pauseTimer = 0;
                         drop.showTrail = false;
-                        
+                        drop.encryptedChars.clear();
+
+                        // Regenerate trail characters
+                        for (let t = 0; t < drop.trail.length; t++) {
+                            drop.trail[t] = getMatrixChar();
+                        }
+
                         // Choose new text
                         const showLongText = Math.random() < 0.2;
                         drop.text = showLongText
                             ? AI_SAYINGS[Math.floor(Math.random() * AI_SAYINGS.length)]
                             : AI_WORDS[Math.floor(Math.random() * AI_WORDS.length)];
-                        
+
                         continue;
                     }
                     
@@ -404,7 +420,8 @@ document.addEventListener('DOMContentLoaded', () => {
                             } else {
                                 drop.typingState = 'typing';
                                 drop.showTrail = false;
-                                
+                                drop.encryptedChars.clear();
+
                                 // Choose new text
                                 const showLongText = Math.random() < 0.2;
                                 drop.text = showLongText
@@ -420,21 +437,24 @@ document.addEventListener('DOMContentLoaded', () => {
                     
                     // Set font
                     setFont(drop.fontSize);
-                    
+
+                    // Pulse effect — calculated once per drop, used by all chars + trail
+                    const dropPulse = 0.85 + (Math.sin(globalTime * drop.pulseSpeed + drop.pulsePhase) * 0.15);
+
                     // Draw text characters
                     if (CONFIG.SHOW_WORDS) {
                         const text = drop.text;
                         const visiblePart = text.substring(0, drop.visibleChars);
                         
-                        // Calculate positions for each character
-                        const charPositions = [];
+                        // Calculate positions for each character (reuse buffer)
+                        charPositionsBuffer.length = 0;
                         
                         if (CONFIG.TYPING_DIRECTION === 'bottom-up') {
                             // Bottom-up typing
                             for (let j = 0; j < visiblePart.length; j++) {
                                 const y = drop.y - (j * drop.fontSize);
                                 
-                                charPositions.push({
+                                charPositionsBuffer.push({
                                     char: visiblePart[visiblePart.length - 1 - j],
                                     y: y,
                                     index: visiblePart.length - 1 - j
@@ -445,7 +465,7 @@ document.addEventListener('DOMContentLoaded', () => {
                             for (let j = 0; j < visiblePart.length; j++) {
                                 const y = drop.y + (j * drop.fontSize);
                                 
-                                charPositions.push({
+                                charPositionsBuffer.push({
                                     char: visiblePart[j],
                                     y: y,
                                     index: j
@@ -454,8 +474,8 @@ document.addEventListener('DOMContentLoaded', () => {
                         }
                         
                         // Draw each character
-                        for (let j = 0; j < charPositions.length; j++) {
-                            const pos = charPositions[j];
+                        for (let j = 0; j < charPositionsBuffer.length; j++) {
+                            const pos = charPositionsBuffer[j];
                             
                             // Skip if off screen
                             if (pos.y === undefined || pos.y < 0 || pos.y > canvasHeight) continue;
@@ -467,40 +487,17 @@ document.addEventListener('DOMContentLoaded', () => {
                             // Calculate fade position
                             const fadePosition = pos.index / visiblePart.length;
                             
-                            // Apply pulse effect
-                            const pulseMultiplier = 0.85 + (Math.sin(globalTime * drop.pulseSpeed + drop.pulsePhase) * 0.15);
-                            
-                            // Set glow effect with improved clarity
-                            if (isCurrentlyTyped) {
-                                if (!CONFIG.REDUCED_BLUR) {
-                                    ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                    ctx.shadowBlur = drop.glowIntensity * 1.2 * pulseMultiplier;
-                                } else {
-                                    // Reduced blur for crisper text
-                                    ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                    ctx.shadowBlur = Math.min(drop.glowIntensity * 0.8, 2) * pulseMultiplier;
-                                }
-                            } else {
-                                if (!CONFIG.REDUCED_BLUR) {
-                                    ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                    ctx.shadowBlur = drop.glowIntensity * fadePosition * 0.8 * pulseMultiplier;
-                                } else {
-                                    // Minimal blur for non-typed characters
-                                    ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                    ctx.shadowBlur = Math.min(drop.glowIntensity * fadePosition * 0.5, 1.5) * pulseMultiplier;
-                                }
-                            }
-                            
-                            // Set color
+                            // Set color with pulse and glow via brightness (no shadowBlur)
                             const r = drop.baseColor.r;
-                            const g = Math.floor(drop.baseColor.g * (0.7 + fadePosition * 0.3) * pulseMultiplier);
-                            const b = Math.floor(drop.baseColor.b * (0.7 + fadePosition * 0.3) * pulseMultiplier);
+                            const g = Math.floor(drop.baseColor.g * (0.7 + fadePosition * 0.3) * dropPulse);
+                            const b = Math.floor(drop.baseColor.b * (0.7 + fadePosition * 0.3) * dropPulse);
                             const opacity = 0.7 + (fadePosition * 0.3);
-                            
+
                             if (isCurrentlyTyped) {
-                                ctx.fillStyle = `rgba(${r + 100}, ${g + 50}, ${b}, 0.95)`;
+                                // Bright glow effect via color boost instead of shadowBlur
+                                ctx.fillStyle = rgba(r + 120, g + 70, b + 30, 0.98);
                             } else {
-                                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
+                                ctx.fillStyle = rgba(r, g, b, opacity);
                             }
                             
                             // Determine decryption state
@@ -517,13 +514,8 @@ document.addEventListener('DOMContentLoaded', () => {
                                 displayChar = pos.char;
                                 
                                 // Make fully decrypted characters more visible
-                                const brightnessBoost = 30;
-                                ctx.fillStyle = `rgba(${Math.min(255, r + brightnessBoost)}, 
-                                               ${Math.min(255, g + brightnessBoost)}, 
-                                               ${Math.min(255, b + brightnessBoost)}, 
-                                               ${Math.min(1.0, opacity + 0.2)})`;
-                                               
-                                ctx.shadowBlur = drop.glowIntensity * 1.5 * pulseMultiplier;
+                                const brightnessBoost = 40;
+                                ctx.fillStyle = rgba(Math.min(255, r + brightnessBoost), Math.min(255, g + brightnessBoost), Math.min(255, b + brightnessBoost), Math.min(1.0, opacity + 0.2));
                             } else if (decryptionProgress > 40) {
                                 // Partially decrypted
                                 const decryptionRatio = (decryptionProgress - 40) / (85 - 40);
@@ -532,10 +524,7 @@ document.addEventListener('DOMContentLoaded', () => {
                                     displayChar = pos.char;
                                     
                                     const partialBrightnessBoost = Math.floor(20 * decryptionRatio);
-                                    ctx.fillStyle = `rgba(${Math.min(255, r + partialBrightnessBoost)}, 
-                                                   ${Math.min(255, g + partialBrightnessBoost)}, 
-                                                   ${Math.min(255, b + partialBrightnessBoost)}, 
-                                                   ${opacity})`;
+                                    ctx.fillStyle = rgba(Math.min(255, r + partialBrightnessBoost), Math.min(255, g + partialBrightnessBoost), Math.min(255, b + partialBrightnessBoost), opacity);
                                 } else {
                                     displayChar = getEncryptedChar(drop, pos.index);
                                     if (Math.random() < 0.08 * (1 - decryptionRatio)) {
@@ -550,30 +539,20 @@ document.addEventListener('DOMContentLoaded', () => {
                                 }
                             }
                             
-                            // Draw character with improved positioning for crispness
-                            if (CONFIG.CRISP_TEXT) {
-                                // Round position to nearest pixel for crisp rendering
-                                const x = Math.round(drop.x);
-                                const y = Math.round(pos.y);
-                                ctx.fillText(displayChar, x, y);
-                            } else {
-                                ctx.fillText(displayChar, drop.x, pos.y);
-                            }
+                            // Draw character (pixel-snapped for crispness)
+                            ctx.fillText(displayChar, Math.round(drop.x), Math.round(pos.y));
                         }
-                        
-                        // Reset shadow
-                        ctx.shadowBlur = 0;
                         
                         // Draw matrix trail
                         if (CONFIG.SHOW_TRAILS) {
                             // Determine starting position
                             let startY;
                             
-                            if (CONFIG.SHOW_WORDS && drop.visibleChars > 0 && charPositions && charPositions.length > 0) {
+                            if (CONFIG.SHOW_WORDS && drop.visibleChars > 0 && charPositionsBuffer.length > 0) {
                                 if (CONFIG.TYPING_DIRECTION === 'bottom-up') {
-                                    startY = charPositions[0].y + drop.fontSize;
+                                    startY = charPositionsBuffer[0].y + drop.fontSize;
                                 } else {
-                                    startY = charPositions[charPositions.length - 1].y + drop.fontSize;
+                                    startY = charPositionsBuffer[charPositionsBuffer.length - 1].y + drop.fontSize;
                                 }
                             } else {
                                 startY = drop.y + drop.fontSize;
@@ -617,39 +596,15 @@ document.addEventListener('DOMContentLoaded', () => {
                                     Math.min(1.0, fadePosition * 1.5) : 
                                     Math.pow(fadePosition, 1.8);
                                 
-                                // Apply pulse effect
-                                const pulseMultiplier = 0.85 + (Math.sin(globalTime * drop.pulseSpeed + drop.pulsePhase + j * 0.2) * 0.15);
-                                
-                                // Set glow effect with improved clarity
-                                if (j > effectiveTrailLength * 2/3) {
-                                    if (!CONFIG.REDUCED_BLUR) {
-                                        ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                        ctx.shadowBlur = drop.glowIntensity * falloffFactor * 1.2 * pulseMultiplier;
-                                    } else {
-                                        // Reduced blur for crisper trail
-                                        ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                        ctx.shadowBlur = Math.min(drop.glowIntensity * falloffFactor * 0.8, 2) * pulseMultiplier;
-                                    }
-                                } else if (j > effectiveTrailLength * 1/2) {
-                                    if (!CONFIG.REDUCED_BLUR) {
-                                        ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                        ctx.shadowBlur = drop.glowIntensity * falloffFactor * 0.6 * pulseMultiplier;
-                                    } else {
-                                        // Minimal blur for upper trail
-                                        ctx.shadowColor = CONFIG.GLOW_COLOR;
-                                        ctx.shadowBlur = Math.min(drop.glowIntensity * falloffFactor * 0.3, 1) * pulseMultiplier;
-                                    }
-                                } else {
-                                    ctx.shadowBlur = 0;
-                                }
-                                
-                                // Set color
+                                // Set color (glow via brightness, no shadowBlur)
                                 const r = drop.baseColor.r;
                                 const normalizedPosition = j / effectiveTrailLength;
                                 const colorIntensity = Math.pow(normalizedPosition, 0.8);
-                                
-                                const g = Math.floor(drop.baseColor.g * colorIntensity * falloffFactor * pulseMultiplier);
-                                const b = Math.floor(drop.baseColor.b * colorIntensity * falloffFactor * pulseMultiplier);
+
+                                // Brighten bottom trail chars to simulate glow
+                                const trailGlow = j > effectiveTrailLength * 2/3 ? 20 : 0;
+                                const g = Math.floor(drop.baseColor.g * colorIntensity * falloffFactor * dropPulse) + trailGlow;
+                                const b = Math.floor(drop.baseColor.b * colorIntensity * falloffFactor * dropPulse) + trailGlow;
                                 
                                 // Set opacity
                                 let opacity;
@@ -658,32 +613,24 @@ document.addEventListener('DOMContentLoaded', () => {
                                 } else if (j > effectiveTrailLength * 1/3) {
                                     opacity = Math.max(0.15, falloffFactor * 0.9);
                                 } else {
-                                    opacity = Math.max(0.05, falloffFactor * 0.5);
+                                    opacity = Math.max(0.08, falloffFactor * 0.5);
                                 }
-                                
-                                ctx.fillStyle = `rgba(${r}, ${g}, ${b}, ${opacity})`;
-                                
-                                // Draw character with improved positioning
-                                if (CONFIG.CRISP_TEXT) {
-                                    // Round position to nearest pixel for crisp rendering
-                                    const x = Math.round(drop.x);
-                                    const y = Math.round(trailY);
-                                    ctx.fillText(char, x, y);
-                                } else {
-                                    ctx.fillText(char, drop.x, trailY);
-                                }
-                                
+
+                                // Skip nearly invisible characters (saves ~30% of fillText calls)
+                                if (opacity < 0.12) continue;
+
+                                ctx.fillStyle = rgba(r, g, b, opacity);
+                                ctx.fillText(char, Math.round(drop.x), Math.round(trailY));
+
                                 // Occasionally update trail characters
-                                if (Math.random() < 0.05) {
+                                if (Math.random() < 0.04) {
                                     drop.trail[j] = getMatrixChar();
                                 }
                             }
                             
-                            // Reset shadow
-                            ctx.shadowBlur = 0;
                         }
                     }
-                    
+
                     // Move drop down
                     drop.y += drop.speed * (deltaTime * 0.05);
                 } catch (dropError) {
@@ -708,7 +655,6 @@ document.addEventListener('DOMContentLoaded', () => {
     // Initialize
     function initialize() {
         try {
-            console.log("Starting Matrix animation initialization...");
             
             // Set up canvas first
             resizeCanvas();
@@ -716,20 +662,10 @@ document.addEventListener('DOMContentLoaded', () => {
             // Then initialize drops
             initializeDrops();
             
-            // Make sure context exists
             if (!ctx) {
-                console.error("Canvas context is null!");
                 throw new Error("Failed to get canvas context");
             }
-            
-            // Print configuration for debugging
-            console.log("Animation configuration:", {
-                width: canvas.width,
-                height: canvas.height,
-                drops: drops.length,
-                devicePixelRatio: window.devicePixelRatio || 1
-            });
-            
+
             // Ensure we're not already running
             if (animationFrameId) {
                 cancelAnimationFrame(animationFrameId);
@@ -739,10 +675,8 @@ document.addEventListener('DOMContentLoaded', () => {
             // Start animation with explicit flag
             paused = false;
             lastTime = performance.now();
-            console.log("Starting animation loop...");
             animationFrameId = requestAnimationFrame(draw);
             
-            console.log("Matrix animation initialized successfully");
         } catch (error) {
             console.error("Error initializing Matrix animation:", error);
             // Try again after a short delay
