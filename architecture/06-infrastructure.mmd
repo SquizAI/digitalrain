@@ -1,0 +1,40 @@
+flowchart TB
+    subgraph "Application Runtime"
+        ELECTRON["Electron v28"]
+        MAIN["Main Process"]
+        RENDERER["Renderer Processes"]
+    end
+
+    subgraph "Build Tools"
+        NPM["npm"]
+        EB["electron-builder v24"]
+        CANVAS_PKG["canvas v3.1 dev"]
+    end
+
+    subgraph "macOS Platform"
+        DISPLAYS["Multi-display API"]
+        TRAY_SYS["System Tray"]
+        APPLESCRIPT_SYS["osascript"]
+        LOGIN_ITEMS["Login Items"]
+        ACCESSIBILITY["Accessibility Permissions"]
+    end
+
+    subgraph "Deployment"
+        DMG["DMG disk image"]
+        APPS["Applications folder"]
+        GITHUB["GitHub Release"]
+    end
+
+    ELECTRON --> MAIN
+    ELECTRON --> RENDERER
+    NPM --> ELECTRON
+    NPM --> EB
+    NPM --> CANVAS_PKG
+    EB --> DMG
+    DMG --> APPS
+    DMG --> GITHUB
+    MAIN --> DISPLAYS
+    MAIN --> TRAY_SYS
+    MAIN --> APPLESCRIPT_SYS
+    MAIN --> LOGIN_ITEMS
+    MAIN -.-> ACCESSIBILITY

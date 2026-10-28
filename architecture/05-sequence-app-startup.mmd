@@ -1,0 +1,39 @@
+sequenceDiagram
+    participant OS as macOS
+    participant App as Electron App
+    participant Main as main.js
+    participant Screen as screen API
+    participant Win as BrowserWindow
+    participant HTML as index.html
+    participant Renderer as matrix.js
+    participant Canvas as Canvas 2D
+
+    OS->>App: Launch application
+    App->>Main: app.whenReady
+    Main->>Main: setupAutoLaunch
+    Main->>Main: createTray with icon.png
+    Note over Main: 1 second delay
+    Main->>Screen: getAllDisplays
+    Screen-->>Main: Display array with bounds
+
+    loop For each display
+        Main->>Win: new BrowserWindow with display.bounds
+        Main->>Win: setVisibleOnAllWorkspaces true
+        Main->>Win: setAlwaysOnTop desktop level -1
+        Main->>Win: setIgnoreMouseEvents true
+        Main->>Win: loadFile index.html
+        Win->>HTML: Load DOM
+        HTML->>Renderer: DOMContentLoaded
+        Renderer->>Canvas: getContext 2d
+        Renderer->>Renderer: resizeCanvas with DPR scaling
+        Renderer->>Renderer: initializeDrops with DROP_DENSITY
+        Renderer->>Canvas: requestAnimationFrame draw
+        Note over Canvas: Animation loop begins at 30 FPS
+        Win-->>Main: ready-to-show
+        Main->>Win: win.show
+    end
+
+    Main->>Main: globalShortcut.register Cmd+Option+M
+    Main->>Screen: on display-added/removed/changed
+    Main->>Main: setupVisibilityChecker 60s interval
+    Main->>Main: setupPositionChecker 5min interval

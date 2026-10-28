@@ -32,3 +32,19 @@ logs
 .env.development.local
 .env.test.local
 .env.production.local
+.env.*
+!.env.example
+
+# Secrets and credentials
+*.pem
+*.key
+*.p12
+secrets/
+credentials*.json
+
+# Local Neo4j state
+architecture/neo4j/data/
+architecture/neo4j/import/
+
+# Archives
+*.zip

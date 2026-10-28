@@ -1,0 +1,778 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigitalRain Architecture Explorer</title>
+    <script src="https://unpkg.com/neo4j-driver@5.27.0/lib/browser/neo4j-web.min.js"></script>
+    <style>
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        :root {
+            --bg: #0a0e17;
+            --surface: #111827;
+            --surface2: #1a2235;
+            --border: #2a3548;
+            --text: #e2e8f0;
+            --text-dim: #8b99ae;
+            --accent: #3b82f6;
+            --accent-glow: rgba(59, 130, 246, 0.25);
+            --green: #22c55e;
+            --red: #ef4444;
+            --yellow: #eab308;
+            --cyan: #06b6d4;
+        }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg);
+            color: var(--text);
+            height: 100vh;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        /* Header */
+        header {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            padding: 12px 20px;
+            background: var(--surface);
+            border-bottom: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        header .title {
+            display: flex;
+            align-items: center;
+            gap: 10px;
+        }
+
+        header h1 {
+            font-size: 16px;
+            font-weight: 600;
+            letter-spacing: -0.3px;
+        }
+
+        header .subtitle {
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        .status-dot {
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            background: var(--red);
+            transition: background 0.3s;
+        }
+
+        .status-dot.connected { background: var(--green); }
+
+        .status-bar {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-size: 12px;
+            color: var(--text-dim);
+        }
+
+        /* Main layout */
+        .main {
+            display: flex;
+            flex: 1;
+            overflow: hidden;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            width: 280px;
+            background: var(--surface);
+            border-right: 1px solid var(--border);
+            display: flex;
+            flex-direction: column;
+            flex-shrink: 0;
+            overflow: hidden;
+        }
+
+        .sidebar h2 {
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+            letter-spacing: 0.8px;
+            color: var(--text-dim);
+            padding: 14px 16px 8px;
+        }
+
+        .quick-query {
+            padding: 8px 16px;
+            font-size: 13px;
+            color: var(--text);
+            cursor: pointer;
+            border: none;
+            background: none;
+            text-align: left;
+            width: 100%;
+            transition: background 0.15s;
+            line-height: 1.4;
+        }
+
+        .quick-query:hover {
+            background: var(--surface2);
+        }
+
+        .quick-query .label {
+            color: var(--cyan);
+            font-size: 11px;
+            font-weight: 500;
+        }
+
+        .sidebar-section {
+            overflow-y: auto;
+            flex: 1;
+        }
+
+        .schema-item {
+            padding: 6px 16px;
+            font-size: 12px;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            color: var(--text-dim);
+        }
+
+        .schema-item .node-label {
+            color: var(--yellow);
+            font-weight: 600;
+        }
+
+        .schema-item .count {
+            color: var(--text-dim);
+            float: right;
+        }
+
+        /* Chat area */
+        .chat-area {
+            flex: 1;
+            display: flex;
+            flex-direction: column;
+            overflow: hidden;
+        }
+
+        .messages {
+            flex: 1;
+            overflow-y: auto;
+            padding: 20px;
+            display: flex;
+            flex-direction: column;
+            gap: 16px;
+        }
+
+        .message {
+            max-width: 90%;
+            line-height: 1.6;
+        }
+
+        .message.user {
+            align-self: flex-end;
+            background: var(--accent);
+            color: white;
+            padding: 10px 16px;
+            border-radius: 16px 16px 4px 16px;
+            font-size: 14px;
+        }
+
+        .message.assistant {
+            align-self: flex-start;
+            max-width: 95%;
+        }
+
+        .message.assistant .content {
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px 16px 16px 16px;
+            padding: 14px 18px;
+            font-size: 14px;
+        }
+
+        .message.assistant .cypher-block {
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 10px 14px;
+            margin: 10px 0;
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+            color: var(--cyan);
+            overflow-x: auto;
+            white-space: pre-wrap;
+            word-break: break-word;
+        }
+
+        .message.assistant .result-table {
+            width: 100%;
+            border-collapse: collapse;
+            margin: 10px 0;
+            font-size: 13px;
+        }
+
+        .result-table th {
+            background: var(--surface2);
+            padding: 8px 12px;
+            text-align: left;
+            font-weight: 600;
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            color: var(--text-dim);
+            border-bottom: 1px solid var(--border);
+        }
+
+        .result-table td {
+            padding: 6px 12px;
+            border-bottom: 1px solid var(--border);
+            font-family: 'SF Mono', 'Fira Code', monospace;
+            font-size: 12px;
+        }
+
+        .result-table tr:hover td {
+            background: var(--surface2);
+        }
+
+        .result-count {
+            font-size: 12px;
+            color: var(--text-dim);
+            margin-top: 6px;
+        }
+
+        .message.error .content {
+            border-color: var(--red);
+            color: var(--red);
+        }
+
+        .thinking {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            padding: 12px 18px;
+            background: var(--surface);
+            border: 1px solid var(--border);
+            border-radius: 4px 16px 16px 16px;
+            font-size: 13px;
+            color: var(--text-dim);
+        }
+
+        .thinking .dots span {
+            animation: blink 1.4s infinite;
+            font-size: 18px;
+        }
+
+        .thinking .dots span:nth-child(2) { animation-delay: 0.2s; }
+        .thinking .dots span:nth-child(3) { animation-delay: 0.4s; }
+
+        @keyframes blink {
+            0%, 60%, 100% { opacity: 0.2; }
+            30% { opacity: 1; }
+        }
+
+        /* Input area */
+        .input-area {
+            padding: 16px 20px;
+            background: var(--surface);
+            border-top: 1px solid var(--border);
+            flex-shrink: 0;
+        }
+
+        .input-row {
+            display: flex;
+            gap: 10px;
+            align-items: flex-end;
+        }
+
+        .input-row textarea {
+            flex: 1;
+            background: var(--bg);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 12px 16px;
+            color: var(--text);
+            font-size: 14px;
+            font-family: inherit;
+            resize: none;
+            min-height: 44px;
+            max-height: 120px;
+            outline: none;
+            transition: border-color 0.2s;
+        }
+
+        .input-row textarea:focus {
+            border-color: var(--accent);
+            box-shadow: 0 0 0 3px var(--accent-glow);
+        }
+
+        .input-row textarea::placeholder {
+            color: var(--text-dim);
+        }
+
+        .send-btn {
+            width: 44px;
+            height: 44px;
+            border-radius: 12px;
+            background: var(--accent);
+            border: none;
+            color: white;
+            font-size: 18px;
+            cursor: pointer;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            transition: opacity 0.2s;
+            flex-shrink: 0;
+        }
+
+        .send-btn:disabled {
+            opacity: 0.4;
+            cursor: not-allowed;
+        }
+
+        .send-btn:hover:not(:disabled) {
+            opacity: 0.85;
+        }
+
+        .hint {
+            font-size: 11px;
+            color: var(--text-dim);
+            margin-top: 8px;
+            text-align: center;
+        }
+
+        /* Responsive */
+        @media (max-width: 768px) {
+            .sidebar { display: none; }
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 6px; }
+        ::-webkit-scrollbar-track { background: transparent; }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 3px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--text-dim); }
+    </style>
+</head>
+<body>
+
+<header>
+    <div class="title">
+        <h1>DigitalRain Architecture Explorer</h1>
+        <span class="subtitle">Ask questions about the codebase in plain English</span>
+    </div>
+    <div class="status-bar">
+        <div class="status-dot" id="statusDot"></div>
+        <span id="statusText">Connecting...</span>
+    </div>
+</header>
+
+<div class="main">
+    <aside class="sidebar">
+        <h2>Quick Questions</h2>
+        <div class="sidebar-section" id="quickQueries">
+            <button class="quick-query" data-q="Show me the full architecture graph">
+                <div class="label">Overview</div>
+                Full architecture graph
+            </button>
+            <button class="quick-query" data-q="What are the most called functions?">
+                <div class="label">Hotspots</div>
+                Most called functions
+            </button>
+            <button class="quick-query" data-q="Show me the function call graph from draw()">
+                <div class="label">Call Graph</div>
+                What does draw() call?
+            </button>
+            <button class="quick-query" data-q="What events does the app listen to?">
+                <div class="label">Events</div>
+                All event subscriptions
+            </button>
+            <button class="quick-query" data-q="What external services does the app use?">
+                <div class="label">External</div>
+                External service integrations
+            </button>
+            <button class="quick-query" data-q="Show me all periodic jobs and what functions they execute">
+                <div class="label">Jobs</div>
+                Scheduled / periodic tasks
+            </button>
+            <button class="quick-query" data-q="Which files have the most lines of code?">
+                <div class="label">Size</div>
+                Files by LOC
+            </button>
+            <button class="quick-query" data-q="If I change matrix.js, what is affected?">
+                <div class="label">Impact</div>
+                Change impact analysis
+            </button>
+            <button class="quick-query" data-q="Show me the module dependency graph">
+                <div class="label">Modules</div>
+                Module-to-module dependencies
+            </button>
+            <button class="quick-query" data-q="What functions read or write the Drop entity?">
+                <div class="label">Data Flow</div>
+                Drop entity access
+            </button>
+            <button class="quick-query" data-q="List all npm packages and who uses them">
+                <div class="label">Packages</div>
+                Dependency usage
+            </button>
+            <button class="quick-query" data-q="Show me node counts by type">
+                <div class="label">Stats</div>
+                Graph statistics
+            </button>
+        </div>
+
+        <h2>Graph Schema</h2>
+        <div class="sidebar-section" id="schemaSection">
+            <div class="schema-item"><span class="node-label">:Module</span> — logical groupings</div>
+            <div class="schema-item"><span class="node-label">:File</span> — source files</div>
+            <div class="schema-item"><span class="node-label">:Function</span> — exported functions</div>
+            <div class="schema-item"><span class="node-label">:Entity</span> — data structures</div>
+            <div class="schema-item"><span class="node-label">:Package</span> — npm dependencies</div>
+            <div class="schema-item"><span class="node-label">:ExternalService</span> — platform APIs</div>
+            <div class="schema-item"><span class="node-label">:Event</span> — app/system events</div>
+            <div class="schema-item"><span class="node-label">:EnvVar</span> — environment vars</div>
+            <div class="schema-item"><span class="node-label">:Job</span> — periodic tasks</div>
+        </div>
+    </aside>
+
+    <div class="chat-area">
+        <div class="messages" id="messages">
+            <div class="message assistant">
+                <div class="content">
+                    <strong>Welcome to the DigitalRain Architecture Explorer.</strong><br><br>
+                    I have the full codebase graph loaded in Neo4j — 12 files, 24 functions, 5 modules, 16 events, 3 entities, and all their relationships.<br><br>
+                    Ask me anything in plain English, like:<br>
+                    &bull; "What functions does createTray call?"<br>
+                    &bull; "Show me all files in the main-process module"<br>
+                    &bull; "What would be affected if I change main.js?"<br><br>
+                    I'll translate your question into a Cypher query, run it against Neo4j, and show you the results.
+                </div>
+            </div>
+        </div>
+
+        <div class="input-area">
+            <div class="input-row">
+                <textarea id="userInput" placeholder="Ask about the architecture..." rows="1"></textarea>
+                <button class="send-btn" id="sendBtn" title="Send">&#9654;</button>
+            </div>
+            <div class="hint">Press Enter to send &middot; Shift+Enter for new line &middot; Powered by Gemini + Neo4j</div>
+        </div>
+    </div>
+</div>
+
+<script>
+// ============================================================
+// CONFIG
+// ============================================================
+const NEO4J_URI = 'bolt://localhost:7687';
+const NEO4J_USER = 'neo4j';
+const NEO4J_PASS = 'repoanalysis';
+function getGeminiKey() {
+    let key = localStorage.getItem('gemini_api_key');
+    if (!key) {
+        key = (window.prompt('Enter your Gemini API key (stored only in this browser):') || '').trim();
+        if (key) localStorage.setItem('gemini_api_key', key);
+    }
+    return key;
+}
+const GEMINI_MODEL = 'gemini-2.0-flash';
+const geminiUrl = () => `https://generativelanguage.googleapis.com/v1beta/models/${GEMINI_MODEL}:generateContent?key=${encodeURIComponent(getGeminiKey())}`;
+
+// ============================================================
+// GRAPH SCHEMA (fed to Gemini as context)
+// ============================================================
+const GRAPH_SCHEMA = `
+Neo4j Graph Schema for DigitalRain (Electron Matrix wallpaper app):
+
+NODE LABELS & PROPERTIES:
+- :Module {name, directory, description}
+- :File {path, language, loc, type}  (type: main-process|renderer|html-shell|stylesheet|config|script|docs)
+- :Function {name, file, async, exported, description}
+- :Entity {name, table, fields_json}
+- :Package {name, version, dev_only}
+- :ExternalService {name, type, purpose}
+- :Event {name, payload_schema}
+- :EnvVar {key, required, default_value, used_by}
+- :Job {name, schedule, handler}
+
+RELATIONSHIP TYPES:
+- (:File)-[:IMPORTS]->(:File)
+- (:File)-[:BELONGS_TO]->(:Module)
+- (:Function)-[:DEFINED_IN]->(:File)
+- (:Function)-[:CALLS]->(:Function)
+- (:Function)-[:READS_FROM]->(:Entity)
+- (:Function)-[:WRITES_TO]->(:Entity)
+- (:Function)-[:CALLS_EXTERNAL]->(:ExternalService)
+- (:Function)-[:SUBSCRIBES_TO]->(:Event)
+- (:Function)-[:READS_ENV]->(:EnvVar)
+- (:File)-[:DEPENDS_ON]->(:Package)
+- (:Module)-[:DEPENDS_ON]->(:Module)
+- (:Job)-[:EXECUTES]->(:Function)
+
+IMPORTANT CYPHER NOTES:
+- Always use RETURN, never use RETURN *
+- Use OPTIONAL MATCH for paths that may not exist
+- Limit results with LIMIT when the result set could be large
+- The graph is small (~70 nodes total), so most queries return quickly
+`;
+
+// ============================================================
+// NEO4J CONNECTION
+// ============================================================
+let driver = null;
+let session = null;
+
+async function connectNeo4j() {
+    try {
+        driver = neo4j.driver(NEO4J_URI, neo4j.auth.basic(NEO4J_USER, NEO4J_PASS));
+        const info = await driver.getServerInfo();
+        setStatus(true, `Neo4j ${info.protocolVersion || 'connected'}`);
+        return true;
+    } catch (e) {
+        console.error('Neo4j connection failed:', e);
+        setStatus(false, 'Neo4j offline — start with ./start.sh');
+        return false;
+    }
+}
+
+function setStatus(connected, text) {
+    document.getElementById('statusDot').className = 'status-dot' + (connected ? ' connected' : '');
+    document.getElementById('statusText').textContent = text;
+}
+
+async function runCypher(query) {
+    if (!driver) throw new Error('Not connected to Neo4j');
+    const session = driver.session();
+    try {
+        const result = await session.run(query);
+        return {
+            records: result.records.map(r => {
+                const obj = {};
+                r.keys.forEach(key => {
+                    const val = r.get(key);
+                    obj[key] = formatNeo4jValue(val);
+                });
+                return obj;
+            }),
+            keys: result.records.length > 0 ? result.records[0].keys : []
+        };
+    } finally {
+        await session.close();
+    }
+}
+
+function formatNeo4jValue(val) {
+    if (val === null || val === undefined) return 'null';
+    if (typeof val === 'object' && val.constructor && val.constructor.name === 'Node') {
+        return `(:${val.labels.join(':')} {${Object.entries(val.properties).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join(', ')}})`;
+    }
+    if (typeof val === 'object' && val.constructor && val.constructor.name === 'Relationship') {
+        return `[:${val.type} {${Object.entries(val.properties).map(([k,v]) => `${k}: ${JSON.stringify(v)}`).join(', ')}}]`;
+    }
+    if (typeof val === 'object' && val.constructor && val.constructor.name === 'Path') {
+        return val.segments.map(s => `(${s.start.properties.name || s.start.properties.path || '?'})-[:${s.relationship.type}]->(${s.end.properties.name || s.end.properties.path || '?'})`).join(' ');
+    }
+    if (typeof val === 'object' && val.low !== undefined && val.high !== undefined) {
+        return val.toNumber ? val.toNumber() : val.low;
+    }
+    if (Array.isArray(val)) {
+        return val.map(v => formatNeo4jValue(v)).join(', ');
+    }
+    return val;
+}
+
+// ============================================================
+// GEMINI API
+// ============================================================
+async function askGemini(userQuestion) {
+    const prompt = `You are a Cypher query generator for a Neo4j graph database containing the architecture of a codebase called "DigitalRain".
+
+${GRAPH_SCHEMA}
+
+The user asked: "${userQuestion}"
+
+Your job:
+1. Generate a valid Cypher query that answers their question
+2. Provide a brief natural language explanation of what the query does
+
+Respond in this exact JSON format (no markdown, no code fences):
+{"cypher": "MATCH ... RETURN ...", "explanation": "This query ..."}
+
+If the question is conversational (e.g., "hello", "thanks"), respond:
+{"cypher": "", "explanation": "Your conversational response here"}
+
+IMPORTANT: Only return raw JSON. No markdown formatting. No \`\`\` blocks.`;
+
+    const resp = await fetch(geminiUrl(), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+            contents: [{ parts: [{ text: prompt }] }],
+            generationConfig: {
+                temperature: 0.1,
+                maxOutputTokens: 1024
+            }
+        })
+    });
+
+    if (!resp.ok) {
+        const err = await resp.text();
+        throw new Error(`Gemini API error: ${resp.status} — ${err}`);
+    }
+
+    const data = await resp.json();
+    const text = data.candidates?.[0]?.content?.parts?.[0]?.text;
+    if (!text) throw new Error('Empty response from Gemini');
+
+    // Parse JSON (strip any accidental markdown fences)
+    const cleaned = text.replace(/```json\s*/g, '').replace(/```\s*/g, '').trim();
+    return JSON.parse(cleaned);
+}
+
+// ============================================================
+// CHAT UI
+// ============================================================
+const messagesEl = document.getElementById('messages');
+const inputEl = document.getElementById('userInput');
+const sendBtn = document.getElementById('sendBtn');
+
+function addMessage(type, html) {
+    const div = document.createElement('div');
+    div.className = `message ${type}`;
+    if (type === 'user') {
+        div.textContent = html;
+    } else {
+        div.innerHTML = `<div class="content">${html}</div>`;
+    }
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+}
+
+function addThinking() {
+    const div = document.createElement('div');
+    div.className = 'message assistant';
+    div.id = 'thinking';
+    div.innerHTML = '<div class="thinking">Thinking <div class="dots"><span>.</span><span>.</span><span>.</span></div></div>';
+    messagesEl.appendChild(div);
+    messagesEl.scrollTop = messagesEl.scrollHeight;
+    return div;
+}
+
+function removeThinking() {
+    const el = document.getElementById('thinking');
+    if (el) el.remove();
+}
+
+function buildResultTable(keys, records) {
+    if (!records || records.length === 0) return '<em>No results returned.</em>';
+
+    let html = '<table class="result-table"><thead><tr>';
+    keys.forEach(k => { html += `<th>${escapeHtml(k)}</th>`; });
+    html += '</tr></thead><tbody>';
+
+    const limit = Math.min(records.length, 50);
+    for (let i = 0; i < limit; i++) {
+        html += '<tr>';
+        keys.forEach(k => {
+            const val = records[i][k];
+            html += `<td>${escapeHtml(String(val))}</td>`;
+        });
+        html += '</tr>';
+    }
+    html += '</tbody></table>';
+
+    if (records.length > limit) {
+        html += `<div class="result-count">Showing ${limit} of ${records.length} results</div>`;
+    } else {
+        html += `<div class="result-count">${records.length} result${records.length !== 1 ? 's' : ''}</div>`;
+    }
+
+    return html;
+}
+
+function escapeHtml(str) {
+    return str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;');
+}
+
+async function handleSend() {
+    const question = inputEl.value.trim();
+    if (!question) return;
+
+    inputEl.value = '';
+    inputEl.style.height = 'auto';
+    sendBtn.disabled = true;
+
+    addMessage('user', question);
+    addThinking();
+
+    try {
+        // Step 1: Ask Gemini to generate Cypher
+        const geminiResult = await askGemini(question);
+
+        removeThinking();
+
+        if (!geminiResult.cypher) {
+            // Conversational response
+            addMessage('assistant', escapeHtml(geminiResult.explanation));
+            sendBtn.disabled = false;
+            return;
+        }
+
+        // Step 2: Run the Cypher query
+        let resultHtml = `<p>${escapeHtml(geminiResult.explanation)}</p>`;
+        resultHtml += `<div class="cypher-block">${escapeHtml(geminiResult.cypher)}</div>`;
+
+        try {
+            const { keys, records } = await runCypher(geminiResult.cypher);
+            resultHtml += buildResultTable(keys, records);
+        } catch (cypherErr) {
+            resultHtml += `<p style="color: var(--red);">Query error: ${escapeHtml(cypherErr.message)}</p>`;
+            resultHtml += `<p style="color: var(--text-dim); font-size: 12px;">The Cypher query generated by Gemini had a syntax error. Try rephrasing your question.</p>`;
+        }
+
+        addMessage('assistant', resultHtml);
+    } catch (err) {
+        removeThinking();
+        addMessage('error', `<p>Error: ${escapeHtml(err.message)}</p>`);
+    }
+
+    sendBtn.disabled = false;
+    inputEl.focus();
+}
+
+// Event listeners
+sendBtn.addEventListener('click', handleSend);
+
+inputEl.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter' && !e.shiftKey) {
+        e.preventDefault();
+        handleSend();
+    }
+});
+
+// Auto-resize textarea
+inputEl.addEventListener('input', () => {
+    inputEl.style.height = 'auto';
+    inputEl.style.height = Math.min(inputEl.scrollHeight, 120) + 'px';
+});
+
+// Quick query buttons
+document.querySelectorAll('.quick-query').forEach(btn => {
+    btn.addEventListener('click', () => {
+        inputEl.value = btn.dataset.q;
+        handleSend();
+    });
+});
+
+// ============================================================
+// INIT
+// ============================================================
+connectNeo4j();
+</script>
+</body>
+</html>

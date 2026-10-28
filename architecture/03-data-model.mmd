@@ -1,0 +1,59 @@
+erDiagram
+    CONFIG {
+        boolean SHOW_WORDS "true"
+        boolean SHOW_TRAILS "true"
+        float DROP_DENSITY "0.6"
+        int MAX_DROPS "200"
+        int MIN_TRAIL_LENGTH "12"
+        int MAX_TRAIL_LENGTH "35"
+        int TARGET_FPS "30"
+        float SPEED_MULTIPLIER "1.2"
+        int MIN_FONT_SIZE "18"
+        int MAX_FONT_SIZE "28"
+        int TYPING_SPEED "150ms"
+        int WORD_PAUSE "2000ms"
+        string TYPING_DIRECTION "bottom-up"
+        boolean CRISP_TEXT "true"
+    }
+
+    DROP {
+        string id "random 9-char ID"
+        float x "random x position"
+        float y "starts above screen"
+        float speed "speedVariation x SPEED_MULTIPLIER"
+        string text "AI_WORDS or AI_SAYINGS"
+        int fontSize "18-28px"
+        int visibleChars "typed char count"
+        string trail "pre-generated katakana chars"
+        int trailLength "12-35"
+        float typingTimer "accumulated delta"
+        string typingState "typing or paused or resetting"
+        float pauseTimer "pause accumulator"
+        float lastTypingTime "timestamp"
+        string baseColor "r 0-30 g 40-70 b 150-205"
+        float pulsePhase "random 0-2PI"
+        float pulseSpeed "0.002-0.007"
+        boolean showTrail "false until paused"
+        float trailStartTime "timestamp"
+        string encryptedChars "charIndex to katakana Map"
+    }
+
+    BROWSER_WINDOW {
+        int x "display x"
+        int y "display y"
+        int width "display width"
+        int height "display height"
+        boolean frame "false"
+        boolean transparent "false"
+        string backgroundColor "000000"
+        boolean nodeIntegration "false"
+        boolean contextIsolation "true"
+    }
+
+    DISPLAY {
+        string bounds "x y width height"
+    }
+
+    CONFIG ||--o{ DROP : "configures creation of"
+    DISPLAY ||--|| BROWSER_WINDOW : "defines bounds for"
+    BROWSER_WINDOW ||--o{ DROP : "renderer contains"

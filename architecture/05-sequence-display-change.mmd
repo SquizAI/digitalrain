@@ -1,0 +1,36 @@
+sequenceDiagram
+    participant OS as macOS
+    participant Screen as screen API
+    participant Main as main.js
+    participant Win as BrowserWindows
+    participant Timer as Debounce Timer
+
+    OS->>Screen: Display added/removed/changed
+    Screen->>Main: display-added event
+    Main->>Main: handleDisplayChange
+    Main->>Timer: Check existing timeout
+
+    alt Already handling
+        Main-->>Main: Return early debouncing
+    else New change
+        Main->>Timer: setTimeout 30000ms
+        Note over Timer: 30 second debounce
+        Timer->>Main: Debounce complete
+        Main->>Main: isRefreshing = true
+
+        loop Close existing windows
+            Main->>Win: win.close
+        end
+
+        Main->>Main: backgroundWindows = empty
+        Main->>Screen: getAllDisplays
+        Screen-->>Main: Updated Display array
+
+        loop For each display
+            Main->>Win: createMatrixWindow display
+            Main->>Main: backgroundWindows.push win
+        end
+
+        Note over Main: 2 second cooldown
+        Main->>Main: isRefreshing = false
+    end

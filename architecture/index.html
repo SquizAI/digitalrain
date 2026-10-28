@@ -1,0 +1,1275 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>DigitalRain - Architecture Analysis</title>
+    <script src="https://cdn.jsdelivr.net/npm/mermaid@11/dist/mermaid.min.js"></script>
+    <style>
+        :root {
+            --bg-primary: #0a0e17;
+            --bg-secondary: #111827;
+            --bg-card: #1a2332;
+            --border: #1e3a5f;
+            --text-primary: #e2e8f0;
+            --text-secondary: #94a3b8;
+            --accent: #22d3ee;
+            --accent-dim: #0e7490;
+            --green: #10b981;
+            --yellow: #f59e0b;
+            --red: #ef4444;
+            --purple: #a78bfa;
+        }
+
+        * { margin: 0; padding: 0; box-sizing: border-box; }
+
+        body {
+            font-family: 'Inter', -apple-system, BlinkMacSystemFont, 'Segoe UI', sans-serif;
+            background: var(--bg-primary);
+            color: var(--text-primary);
+            line-height: 1.7;
+        }
+
+        /* Sidebar */
+        .sidebar {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 280px;
+            height: 100vh;
+            background: var(--bg-secondary);
+            border-right: 1px solid var(--border);
+            overflow-y: auto;
+            z-index: 100;
+            padding: 24px 0;
+        }
+
+        .sidebar h2 {
+            font-size: 14px;
+            text-transform: uppercase;
+            letter-spacing: 1.5px;
+            color: var(--accent);
+            padding: 0 20px;
+            margin-bottom: 16px;
+        }
+
+        .sidebar .logo {
+            padding: 0 20px 20px;
+            border-bottom: 1px solid var(--border);
+            margin-bottom: 16px;
+        }
+
+        .sidebar .logo h1 {
+            font-size: 20px;
+            color: var(--accent);
+            font-weight: 700;
+        }
+
+        .sidebar .logo span {
+            font-size: 12px;
+            color: var(--text-secondary);
+        }
+
+        .sidebar a {
+            display: block;
+            padding: 8px 20px;
+            color: var(--text-secondary);
+            text-decoration: none;
+            font-size: 13px;
+            transition: all 0.15s;
+        }
+
+        .sidebar a:hover {
+            background: rgba(34, 211, 238, 0.08);
+            color: var(--accent);
+        }
+
+        .sidebar a.active {
+            color: var(--accent);
+            background: rgba(34, 211, 238, 0.12);
+            border-left: 3px solid var(--accent);
+        }
+
+        .nav-group {
+            margin-bottom: 12px;
+        }
+
+        .nav-group-label {
+            font-size: 11px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--text-secondary);
+            padding: 12px 20px 4px;
+            opacity: 0.6;
+        }
+
+        /* Main content */
+        .main {
+            margin-left: 280px;
+            padding: 40px 60px;
+            max-width: 1200px;
+        }
+
+        h1 {
+            font-size: 36px;
+            font-weight: 800;
+            margin-bottom: 8px;
+            background: linear-gradient(135deg, var(--accent), var(--green));
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+        }
+
+        .subtitle {
+            color: var(--text-secondary);
+            font-size: 16px;
+            margin-bottom: 40px;
+        }
+
+        section {
+            margin-bottom: 60px;
+            scroll-margin-top: 20px;
+        }
+
+        h2 {
+            font-size: 24px;
+            font-weight: 700;
+            margin-bottom: 20px;
+            padding-bottom: 8px;
+            border-bottom: 1px solid var(--border);
+            color: var(--text-primary);
+        }
+
+        h3 {
+            font-size: 18px;
+            font-weight: 600;
+            margin: 24px 0 12px;
+            color: var(--accent);
+        }
+
+        p {
+            margin-bottom: 16px;
+            color: var(--text-secondary);
+        }
+
+        strong { color: var(--text-primary); }
+
+        code {
+            background: rgba(34, 211, 238, 0.1);
+            color: var(--accent);
+            padding: 2px 6px;
+            border-radius: 4px;
+            font-size: 13px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+        }
+
+        /* Identity card */
+        .identity-card {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 24px;
+            margin-bottom: 24px;
+        }
+
+        .identity-card table {
+            width: 100%;
+        }
+
+        /* Tables */
+        table {
+            width: 100%;
+            border-collapse: collapse;
+            margin-bottom: 24px;
+            font-size: 14px;
+        }
+
+        th {
+            background: var(--bg-card);
+            color: var(--accent);
+            text-align: left;
+            padding: 10px 16px;
+            font-weight: 600;
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            border-bottom: 2px solid var(--border);
+        }
+
+        td {
+            padding: 10px 16px;
+            border-bottom: 1px solid rgba(30, 58, 95, 0.5);
+            color: var(--text-secondary);
+        }
+
+        tr:hover td {
+            background: rgba(34, 211, 238, 0.03);
+        }
+
+        /* Diagram containers */
+        .diagram-container {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 12px;
+            padding: 32px;
+            margin: 24px 0;
+            overflow-x: auto;
+        }
+
+        .diagram-container .mermaid {
+            display: flex;
+            justify-content: center;
+        }
+
+        .diagram-label {
+            font-size: 12px;
+            text-transform: uppercase;
+            letter-spacing: 1px;
+            color: var(--accent-dim);
+            margin-bottom: 16px;
+        }
+
+        /* Severity badges */
+        .badge {
+            display: inline-block;
+            padding: 2px 8px;
+            border-radius: 4px;
+            font-size: 11px;
+            font-weight: 600;
+            text-transform: uppercase;
+        }
+
+        .badge-low { background: rgba(16, 185, 129, 0.15); color: var(--green); }
+        .badge-medium { background: rgba(245, 158, 11, 0.15); color: var(--yellow); }
+        .badge-high { background: rgba(239, 68, 68, 0.15); color: var(--red); }
+
+        /* Ordered / unordered lists */
+        ol, ul {
+            margin: 0 0 16px 24px;
+            color: var(--text-secondary);
+        }
+
+        li { margin-bottom: 8px; }
+
+        /* Cypher code block */
+        pre {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 8px;
+            padding: 20px;
+            overflow-x: auto;
+            margin-bottom: 24px;
+            font-family: 'JetBrains Mono', 'Fira Code', monospace;
+            font-size: 13px;
+            color: var(--green);
+            line-height: 1.6;
+        }
+
+        pre .comment { color: var(--text-secondary); }
+
+        /* Stats row */
+        .stats {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(160px, 1fr));
+            gap: 16px;
+            margin-bottom: 32px;
+        }
+
+        .stat {
+            background: var(--bg-card);
+            border: 1px solid var(--border);
+            border-radius: 10px;
+            padding: 20px;
+            text-align: center;
+        }
+
+        .stat-value {
+            font-size: 28px;
+            font-weight: 800;
+            color: var(--accent);
+        }
+
+        .stat-label {
+            font-size: 12px;
+            color: var(--text-secondary);
+            text-transform: uppercase;
+            letter-spacing: 0.5px;
+            margin-top: 4px;
+        }
+
+        /* Scrollbar */
+        ::-webkit-scrollbar { width: 8px; }
+        ::-webkit-scrollbar-track { background: var(--bg-primary); }
+        ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: var(--accent-dim); }
+
+        /* Responsive */
+        @media (max-width: 900px) {
+            .sidebar { display: none; }
+            .main { margin-left: 0; padding: 24px; }
+        }
+    </style>
+</head>
+<body>
+
+<nav class="sidebar">
+    <div class="logo">
+        <h1>DigitalRain</h1>
+        <span>Architecture Analysis</span>
+    </div>
+
+    <div class="nav-group">
+        <div class="nav-group-label">Overview</div>
+        <a href="#identity">Identity Card</a>
+        <a href="#overview">Architecture Overview</a>
+    </div>
+
+    <div class="nav-group">
+        <div class="nav-group-label">Diagrams</div>
+        <a href="#project-structure">1. Project Structure</a>
+        <a href="#lifecycle">2. Request Lifecycle</a>
+        <a href="#data-model">3. Data Model</a>
+        <a href="#dependencies">4. Service Dependencies</a>
+        <a href="#seq-startup">5. Startup Sequence</a>
+        <a href="#seq-animation">6. Animation Loop</a>
+        <a href="#seq-display">7. Display Change</a>
+        <a href="#infrastructure">8. Infrastructure</a>
+        <a href="#security">9. Security Model</a>
+        <a href="#client-arch">10. Client Architecture</a>
+        <a href="#cicd">11. CI/CD Pipeline</a>
+    </div>
+
+    <div class="nav-group">
+        <div class="nav-group-label">Analysis</div>
+        <a href="#decisions">Key Decisions</a>
+        <a href="#risks">Risk Areas</a>
+        <a href="#neo4j">Neo4j Setup</a>
+        <a href="#queries">Useful Queries</a>
+        <a href="#glossary">Glossary</a>
+        <a href="#inventory">File Inventory</a>
+    </div>
+</nav>
+
+<div class="main">
+
+    <!-- Header -->
+    <h1>DigitalRain Architecture</h1>
+    <p class="subtitle">Comprehensive analysis of the Matrix-style Electron live wallpaper</p>
+
+    <div class="stats">
+        <div class="stat">
+            <div class="stat-value">1,592</div>
+            <div class="stat-label">Lines of Code</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">12</div>
+            <div class="stat-label">Source Files</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">0</div>
+            <div class="stat-label">Runtime Deps</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">v28</div>
+            <div class="stat-label">Electron</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">30</div>
+            <div class="stat-label">Target FPS</div>
+        </div>
+        <div class="stat">
+            <div class="stat-value">MIT</div>
+            <div class="stat-label">License</div>
+        </div>
+    </div>
+
+    <!-- Identity Card -->
+    <section id="identity">
+        <h2>1. Repo Identity Card</h2>
+        <div class="identity-card">
+            <table>
+                <tr><td><strong>Name</strong></td><td>DigitalRain (digital-rain)</td></tr>
+                <tr><td><strong>Version</strong></td><td>1.0.0</td></tr>
+                <tr><td><strong>Languages</strong></td><td>JavaScript (ES6+), HTML5, CSS3, Bash</td></tr>
+                <tr><td><strong>Framework</strong></td><td>Electron v28.0.0</td></tr>
+                <tr><td><strong>Package Manager</strong></td><td>npm</td></tr>
+                <tr><td><strong>Build Tool</strong></td><td>electron-builder v24.9.1</td></tr>
+                <tr><td><strong>Monorepo</strong></td><td>No</td></tr>
+                <tr><td><strong>Architecture</strong></td><td>Electron desktop app - Main process + Renderer process</td></tr>
+                <tr><td><strong>Entry Points</strong></td><td><code>main.js</code> (Electron main), <code>index.html</code> &rarr; <code>matrix.js</code> (renderer)</td></tr>
+                <tr><td><strong>Platform</strong></td><td>macOS (primary), with fallbacks for Windows/Linux</td></tr>
+                <tr><td><strong>Author</strong></td><td>Matty Squarzoni</td></tr>
+            </table>
+        </div>
+    </section>
+
+    <!-- Architecture Overview -->
+    <section id="overview">
+        <h2>2. Architecture Overview</h2>
+        <p>DigitalRain is a macOS desktop utility that renders a Matrix-style "digital rain" animation as a live wallpaper behind all other application windows. It is built entirely with <strong>Electron v28</strong> and uses the <strong>HTML5 Canvas 2D API</strong> for rendering.</p>
+        <p>The architecture is a classic two-process Electron app. The <strong>main process</strong> (<code>main.js</code>, 527 LOC) manages the application lifecycle: it creates one <code>BrowserWindow</code> per connected display, positions each window at desktop level (below all apps, above the wallpaper), configures a system tray icon with a context menu, registers global keyboard shortcuts, and monitors for display configuration changes.</p>
+        <p>The <strong>renderer process</strong> (<code>matrix.js</code>, 734 LOC) runs inside each BrowserWindow and drives a canvas-based animation loop at 30 FPS, rendering falling columns of Katakana characters interspersed with AI/ML terminology using a typing-decryption visual effect.</p>
+        <p>The app has zero external runtime dependencies. All rendering is done with built-in browser APIs. The only npm packages (<code>electron</code>, <code>electron-builder</code>, <code>canvas</code>) are devDependencies. The entire codebase fits in two JavaScript files, one HTML file, and one CSS file.</p>
+    </section>
+
+    <!-- 1. Project Structure -->
+    <section id="project-structure">
+        <h2>3. Project Structure</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">Directory hierarchy and file relationships</div>
+            <pre class="mermaid">
+flowchart TB
+    subgraph ROOT["Root - DigitalRain"]
+        mainjs["main.js - Electron main process"]
+        matrixjs["matrix.js - Renderer process"]
+        indexhtml["index.html - HTML shell"]
+        stylecss["style.css - Fullscreen canvas styles"]
+        pkg["package.json - Project config"]
+        icon_png["icon.png - Tray icon"]
+        app_icon["app-icon.png - Application icon"]
+        icon_icns["icon.icns - macOS icon bundle"]
+        screenshot["screenshot.png"]
+        licfile["LICENSE - MIT"]
+        readmefile["README.md - Documentation"]
+        gitignore[".gitignore - Git exclusions"]
+    end
+
+    subgraph BUILD["build/"]
+        entitlements["entitlements.mac.plist"]
+    end
+
+    subgraph SCRIPTS["Shell Scripts"]
+        installsh["install.sh - Build and install"]
+        cleanupsh["cleanup.sh - Clean build artifacts"]
+        deploysh["github_deploy.sh - GitHub release"]
+    end
+
+    subgraph OUTPUT["Generated Output"]
+        dist["dist/ - Built DMG and app"]
+        nodemod["node_modules/ - Dependencies"]
+        backup["backup/ directories"]
+    end
+
+    mainjs -->|"loads"| indexhtml
+    indexhtml -->|"links"| stylecss
+    indexhtml -->|"loads"| matrixjs
+    mainjs -->|"references"| icon_png
+    pkg -->|"configures"| mainjs
+    pkg -->|"references"| entitlements
+    installsh -->|"runs"| pkg
+    deploysh -->|"runs"| pkg
+    cleanupsh -->|"cleans"| dist
+            </pre>
+        </div>
+    </section>
+
+    <!-- 2. Request Lifecycle -->
+    <section id="lifecycle">
+        <h2>4. Entry Points and Request Lifecycle</h2>
+
+        <h3>Entry Points</h3>
+        <table>
+            <tr><th>Type</th><th>Location</th><th>Trigger</th></tr>
+            <tr><td><strong>Electron main</strong></td><td><code>main.js:366</code></td><td><code>app.whenReady()</code> - app launch</td></tr>
+            <tr><td><strong>Renderer init</strong></td><td><code>matrix.js:1</code></td><td><code>DOMContentLoaded</code> - per-window</td></tr>
+            <tr><td><strong>Keyboard shortcut</strong></td><td><code>main.js:382</code></td><td><code>Cmd+Option+M</code> - toggle visibility</td></tr>
+            <tr><td><strong>System tray</strong></td><td><code>main.js:226</code></td><td>Tray icon click - context menu</td></tr>
+            <tr><td><strong>Display events</strong></td><td><code>main.js:385-387</code></td><td><code>display-added/removed/changed</code></td></tr>
+            <tr><td><strong>Periodic: position</strong></td><td><code>main.js:358</code></td><td>Every 5 minutes - <code>verifyWindowPositions</code></td></tr>
+            <tr><td><strong>Periodic: visibility</strong></td><td><code>main.js:515</code></td><td>Every 60 seconds - check if windows hidden</td></tr>
+            <tr><td><strong>macOS dock click</strong></td><td><code>main.js:493</code></td><td><code>app.activate</code> - recreate or toggle</td></tr>
+        </table>
+
+        <h3>Exit Points</h3>
+        <table>
+            <tr><th>Type</th><th>Location</th><th>Description</th></tr>
+            <tr><td><strong>Canvas rendering</strong></td><td><code>matrix.js:317</code></td><td><code>draw()</code> - fillText/fillRect to canvas</td></tr>
+            <tr><td><strong>AppleScript exec</strong></td><td><code>main.js:187</code></td><td><code>child_process.exec('osascript ...')</code></td></tr>
+            <tr><td><strong>Login items</strong></td><td><code>main.js:28</code></td><td><code>app.setLoginItemSettings()</code></td></tr>
+            <tr><td><strong>Console logging</strong></td><td>Throughout</td><td><code>console.log/error</code> (debug mode)</td></tr>
+        </table>
+
+        <div class="diagram-container">
+            <div class="diagram-label">App startup, window creation, and animation loop</div>
+            <pre class="mermaid">
+flowchart LR
+    subgraph STARTUP["App Startup"]
+        LAUNCH["app.whenReady"]
+        AUTO["setupAutoLaunch"]
+        TRAY["createTray"]
+        WINDOWS["recreateMatrixWindows"]
+        SHORTCUTS["globalShortcut.register Cmd+Option+M"]
+        LISTENERS["screen event listeners"]
+        CHECKERS["setupVisibilityChecker"]
+    end
+
+    subgraph WINCREATE["Window Creation"]
+        GET_DISPLAYS["screen.getAllDisplays"]
+        CREATE_WIN["createMatrixWindow"]
+        LOAD_HTML["win.loadFile index.html"]
+        SET_LEVEL["setAlwaysOnTop desktop level"]
+    end
+
+    subgraph RENDER["Renderer"]
+        DOM["DOMContentLoaded"]
+        RESIZE["resizeCanvas"]
+        INIT_DROPS["initializeDrops"]
+        RAF["requestAnimationFrame"]
+        DRAW["draw - 30 FPS render loop"]
+    end
+
+    LAUNCH --> AUTO --> TRAY --> WINDOWS --> SHORTCUTS --> LISTENERS --> CHECKERS
+    WINDOWS --> GET_DISPLAYS --> CREATE_WIN --> LOAD_HTML --> SET_LEVEL
+    LOAD_HTML --> DOM --> RESIZE --> INIT_DROPS --> RAF --> DRAW
+    DRAW -->|"loop"| DRAW
+            </pre>
+        </div>
+    </section>
+
+    <!-- 3. Data Model -->
+    <section id="data-model">
+        <h2>5. Data Model</h2>
+        <p>This app has no database. All state is held in memory as JavaScript objects.</p>
+        <p><strong>CONFIG</strong> (immutable, <code>matrix.js:61-87</code>): Animation settings including FPS target, font sizes, drop density, typing speed, and visual toggles.</p>
+        <p><strong>Drop</strong> (mutable, <code>matrix.js:208-258</code>): Each falling column. Contains position, speed, text content, typing state machine state, trail characters, base color, pulse phase, and an encrypted character cache.</p>
+        <p><strong>BrowserWindowConfig</strong> (per-display, <code>main.js:87-103</code>): Frameless, non-transparent window matching each display's bounds.</p>
+
+        <div class="diagram-container">
+            <div class="diagram-label">Core data structures (ER diagram)</div>
+            <pre class="mermaid">
+erDiagram
+    CONFIG {
+        boolean SHOW_WORDS "true"
+        boolean SHOW_TRAILS "true"
+        float DROP_DENSITY "0.6"
+        int MAX_DROPS "200"
+        int TARGET_FPS "30"
+        float SPEED_MULTIPLIER "1.2"
+        int TYPING_SPEED "150ms"
+        int WORD_PAUSE "2000ms"
+        string TYPING_DIRECTION "bottom-up"
+        boolean CRISP_TEXT "true"
+    }
+
+    DROP {
+        string id "random 9-char ID"
+        float x "random x position"
+        float y "starts above screen"
+        float speed "speedVariation x multiplier"
+        string text "AI word or saying"
+        string typingState "typing or paused or resetting"
+        string encryptedChars "charIndex to katakana Map"
+    }
+
+    BROWSER_WINDOW {
+        int x "display x"
+        int y "display y"
+        int width "display width"
+        int height "display height"
+    }
+
+    CONFIG ||--o{ DROP : "configures"
+    BROWSER_WINDOW ||--o{ DROP : "contains"
+            </pre>
+        </div>
+    </section>
+
+    <!-- 4. Service Dependencies -->
+    <section id="dependencies">
+        <h2>6. Service Dependency Map</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">Module and API dependencies</div>
+            <pre class="mermaid">
+flowchart TB
+    subgraph EMP["Electron Main Process"]
+        APP["app Electron lifecycle"]
+        BWIN["BrowserWindow"]
+        TRAY_MOD["Tray icon"]
+        MENU["Menu builder"]
+        SCREEN["screen detection"]
+        GSHORT["globalShortcut"]
+        DIALOG["dialog"]
+    end
+
+    subgraph NODEBI["Node.js Built-ins"]
+        PATH["path"]
+        FS["fs"]
+        EXEC["child_process exec"]
+    end
+
+    subgraph RENDP["Renderer Process"]
+        CANVAS["Canvas 2D API"]
+        RAF_API["requestAnimationFrame"]
+        PERF["performance.now"]
+        DPR["devicePixelRatio"]
+    end
+
+    subgraph HTMLS["HTML Shell"]
+        HTML["index.html"]
+        CSS["style.css"]
+    end
+
+    subgraph MACOS["macOS Platform APIs"]
+        APPLESCRIPT["osascript"]
+        LOGINSET["setLoginItemSettings"]
+        WLEVEL["setAlwaysOnTop"]
+    end
+
+    APP --> BWIN
+    APP --> TRAY_MOD
+    APP --> SCREEN
+    APP --> GSHORT
+    TRAY_MOD --> MENU
+    BWIN --> HTML
+    APP --> LOGINSET
+    BWIN --> WLEVEL
+
+    TRAY_MOD --> PATH
+    TRAY_MOD --> FS
+    APP --> EXEC
+    EXEC --> APPLESCRIPT
+
+    HTML --> CSS
+    HTML --> CANVAS
+    CANVAS --> RAF_API
+    CANVAS --> PERF
+    CANVAS --> DPR
+            </pre>
+        </div>
+    </section>
+
+    <!-- 5. Startup Sequence -->
+    <section id="seq-startup">
+        <h2>7. Sequence: App Startup</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">App boot to first frame</div>
+            <pre class="mermaid">
+sequenceDiagram
+    participant OS as macOS
+    participant App as Electron App
+    participant Main as main.js
+    participant Screen as screen API
+    participant Win as BrowserWindow
+    participant HTML as index.html
+    participant Renderer as matrix.js
+    participant Canvas as Canvas 2D
+
+    OS->>App: Launch application
+    App->>Main: app.whenReady
+    Main->>Main: setupAutoLaunch
+    Main->>Main: createTray with icon.png
+    Note over Main: 1 second delay
+    Main->>Screen: getAllDisplays
+    Screen-->>Main: Display array with bounds
+
+    loop For each display
+        Main->>Win: new BrowserWindow with display.bounds
+        Main->>Win: setVisibleOnAllWorkspaces true
+        Main->>Win: setAlwaysOnTop desktop level -1
+        Main->>Win: setIgnoreMouseEvents true
+        Main->>Win: loadFile index.html
+        Win->>HTML: Load DOM
+        HTML->>Renderer: DOMContentLoaded
+        Renderer->>Canvas: getContext 2d
+        Renderer->>Renderer: resizeCanvas with DPR scaling
+        Renderer->>Renderer: initializeDrops with DROP_DENSITY
+        Renderer->>Canvas: requestAnimationFrame draw
+        Note over Canvas: Animation loop begins at 30 FPS
+        Win-->>Main: ready-to-show
+        Main->>Win: win.show
+    end
+
+    Main->>Main: globalShortcut.register Cmd+Option+M
+    Main->>Screen: on display-added/removed/changed
+    Main->>Main: setupVisibilityChecker 60s interval
+    Main->>Main: setupPositionChecker 5min interval
+            </pre>
+        </div>
+    </section>
+
+    <!-- 6. Animation Loop -->
+    <section id="seq-animation">
+        <h2>8. Sequence: Animation Render Loop</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">Per-frame render cycle</div>
+            <pre class="mermaid">
+sequenceDiagram
+    participant RAF as requestAnimationFrame
+    participant Draw as draw function
+    participant Canvas as Canvas 2D Context
+    participant Drop as Drop Object
+    participant State as Typing State Machine
+
+    RAF->>Draw: currentTime
+    Draw->>Draw: Check paused flag
+    Draw->>Draw: Frame rate limiter 1000/30ms
+    Draw->>Draw: Calculate deltaTime clamped
+    Draw->>Canvas: fillRect 0,0,w,h clear black
+
+    loop For each drop in drops array
+        Draw->>Drop: Check y greater than canvasHeight+200
+        alt Off screen
+            Draw->>Drop: Reset y, visibleChars, state
+            Draw->>Drop: Regenerate trail + new text
+        else On screen
+            Draw->>State: typingTimer += deltaTime
+
+            alt typingState is typing
+                State->>Drop: visibleChars++ every 150ms
+                Note over State: Until text fully typed
+                State->>Drop: Set typingState = paused
+            else typingState is paused
+                State->>Drop: pauseTimer += deltaTime
+                Note over State: Wait 2000ms
+                State->>Drop: Set typingState = resetting
+            else typingState is resetting
+                State->>Drop: visibleChars-- every 75ms
+                Note over State: Until 0
+                State->>Drop: New text, typingState = typing
+            end
+
+            Draw->>Canvas: setFont fontSize cached
+            Draw->>Draw: Calculate pulse = sin globalTime
+
+            loop For each visible character
+                Draw->>Draw: Calculate decryption progress
+                alt Fully decrypted over 85 percent
+                    Draw->>Canvas: fillText real char bright
+                else Partially decrypted 40-85 percent
+                    Draw->>Canvas: fillText real or katakana
+                else Encrypted under 40 percent
+                    Draw->>Canvas: fillText katakana flickering
+                end
+            end
+
+            opt SHOW_TRAILS enabled
+                loop For each trail position
+                    Draw->>Canvas: fillText katakana fading opacity
+                end
+            end
+
+            Draw->>Drop: y += speed x deltaTime x 0.05
+        end
+    end
+
+    Draw->>RAF: requestAnimationFrame draw
+            </pre>
+        </div>
+    </section>
+
+    <!-- 7. Display Change -->
+    <section id="seq-display">
+        <h2>9. Sequence: Display Configuration Change</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">Monitor add/remove handling</div>
+            <pre class="mermaid">
+sequenceDiagram
+    participant OS as macOS
+    participant Screen as screen API
+    participant Main as main.js
+    participant Win as BrowserWindows
+    participant Timer as Debounce Timer
+
+    OS->>Screen: Display added/removed/changed
+    Screen->>Main: display-added event
+    Main->>Main: handleDisplayChange
+    Main->>Timer: Check existing timeout
+
+    alt Already handling
+        Main-->>Main: Return early debouncing
+    else New change
+        Main->>Timer: setTimeout 30000ms
+        Note over Timer: 30 second debounce
+        Timer->>Main: Debounce complete
+        Main->>Main: isRefreshing = true
+
+        loop Close existing windows
+            Main->>Win: win.close
+        end
+
+        Main->>Main: backgroundWindows = empty
+        Main->>Screen: getAllDisplays
+        Screen-->>Main: Updated Display array
+
+        loop For each display
+            Main->>Win: createMatrixWindow display
+            Main->>Main: backgroundWindows.push win
+        end
+
+        Note over Main: 2 second cooldown
+        Main->>Main: isRefreshing = false
+    end
+            </pre>
+        </div>
+    </section>
+
+    <!-- 8. Infrastructure -->
+    <section id="infrastructure">
+        <h2>10. Infrastructure and Integrations</h2>
+
+        <h3>Dependencies</h3>
+        <table>
+            <tr><th>Package</th><th>Version</th><th>Type</th><th>Purpose</th></tr>
+            <tr><td>electron</td><td>^28.0.0</td><td>devDependency</td><td>Runtime framework</td></tr>
+            <tr><td>electron-builder</td><td>^24.9.1</td><td>devDependency</td><td>macOS DMG packaging</td></tr>
+            <tr><td>canvas</td><td>^3.1.0</td><td>devDependency</td><td>Node canvas (build-time only)</td></tr>
+        </table>
+
+        <h3>External Service Integrations</h3>
+        <table>
+            <tr><th>Service</th><th>Type</th><th>Used By</th><th>Purpose</th></tr>
+            <tr><td>macOS Display API</td><td>Platform</td><td><code>recreateMatrixWindows</code></td><td>Multi-monitor detection</td></tr>
+            <tr><td>macOS System Tray</td><td>Platform</td><td><code>createTray</code></td><td>Menu bar icon</td></tr>
+            <tr><td>macOS AppleScript</td><td>Platform</td><td><code>fixMacOSWindowVisibility</code></td><td>Window visibility fix</td></tr>
+            <tr><td>macOS Login Items</td><td>Platform</td><td><code>setupAutoLaunch</code></td><td>Auto-start at boot</td></tr>
+            <tr><td>GitHub Releases</td><td>Deployment</td><td><code>github_deploy.sh</code></td><td>Distribution</td></tr>
+        </table>
+
+        <div class="diagram-container">
+            <div class="diagram-label">Platform, build tools, and deployment</div>
+            <pre class="mermaid">
+flowchart TB
+    subgraph APPRT["Application Runtime"]
+        ELECTRON["Electron v28"]
+        MAINP["Main Process"]
+        RENDERERP["Renderer Processes"]
+    end
+
+    subgraph BUILDTOOLS["Build Tools"]
+        NPM["npm"]
+        EB["electron-builder v24"]
+        CANVAS_PKG["canvas v3.1 dev"]
+    end
+
+    subgraph MACPLAT["macOS Platform"]
+        DISPLAYS["Multi-display API"]
+        TRAY_SYS["System Tray"]
+        APPLESCRIPT_SYS["osascript"]
+        LOGIN_ITEMS["Login Items"]
+        ACCESS_PERM["Accessibility Permissions"]
+    end
+
+    subgraph DEPLOY["Deployment"]
+        DMG["DMG disk image"]
+        APPS["Applications folder"]
+        GITHUB_REL["GitHub Release"]
+    end
+
+    ELECTRON --> MAINP
+    ELECTRON --> RENDERERP
+    NPM --> ELECTRON
+    NPM --> EB
+    NPM --> CANVAS_PKG
+    EB --> DMG
+    DMG --> APPS
+    DMG --> GITHUB_REL
+    MAINP --> DISPLAYS
+    MAINP --> TRAY_SYS
+    MAINP --> APPLESCRIPT_SYS
+    MAINP --> LOGIN_ITEMS
+    MAINP -.-> ACCESS_PERM
+            </pre>
+        </div>
+    </section>
+
+    <!-- 9. Security -->
+    <section id="security">
+        <h2>11. Security and Auth Flow</h2>
+        <p>This is a <strong>local desktop utility with no authentication, no network communication, and no user input</strong> (mouse events are ignored). Security considerations are minimal but documented.</p>
+
+        <h3>Electron Security Settings</h3>
+        <table>
+            <tr><th>Setting</th><th>Value</th><th>Location</th></tr>
+            <tr><td><code>nodeIntegration</code></td><td><code>false</code></td><td><code>main.js:100</code></td></tr>
+            <tr><td><code>contextIsolation</code></td><td><code>true</code></td><td><code>main.js:101</code></td></tr>
+            <tr><td><code>setIgnoreMouseEvents</code></td><td><code>true</code></td><td><code>main.js:118</code></td></tr>
+            <tr><td>Content Security Policy</td><td><code>default-src 'self'; script-src 'self'; style-src 'self'</code></td><td><code>index.html:6</code></td></tr>
+        </table>
+
+        <h3>macOS Entitlements</h3>
+        <table>
+            <tr><th>Entitlement</th><th>Value</th><th>Reason</th></tr>
+            <tr><td><code>app-sandbox</code></td><td><strong>false</strong></td><td>Required for desktop-level window positioning</td></tr>
+            <tr><td><code>allow-jit</code></td><td>true</td><td>Electron Chromium requirement</td></tr>
+            <tr><td><code>allow-unsigned-executable-memory</code></td><td>true</td><td>Electron Chromium requirement</td></tr>
+            <tr><td><code>disable-library-validation</code></td><td>true</td><td>Electron native modules</td></tr>
+        </table>
+
+        <div class="diagram-container">
+            <div class="diagram-label">Security model</div>
+            <pre class="mermaid">
+flowchart TB
+    subgraph SECMODEL["Security Model - DigitalRain"]
+        NOTE["No authentication or authorization - local desktop wallpaper app"]
+    end
+
+    subgraph CSPBLOCK["Content Security Policy - index.html"]
+        CSP["default-src self - script-src self - style-src self"]
+    end
+
+    subgraph ELECSEC["Electron Security - main.js"]
+        NI["nodeIntegration: false"]
+        CI["contextIsolation: true"]
+        IME["setIgnoreMouseEvents true - No user input accepted"]
+    end
+
+    subgraph ENTBLOCK["macOS Entitlements"]
+        SANDBOX["app-sandbox: false - Not sandboxed"]
+        JIT["allow-jit: true"]
+        UNSIGNED["allow-unsigned-executable-memory: true"]
+        DYLD["allow-dyld-environment-variables: true"]
+        LIBVAL["disable-library-validation: true"]
+        PAGEPROTECT["disable-executable-page-protection: true"]
+    end
+
+    subgraph CONCERNS["Security Concerns"]
+        WARN1["exec with AppleScript strings - hardcoded values only"]
+        WARN2["Sandbox disabled - required for desktop-level window access"]
+        WARN3["Hardened runtime disabled - required for Electron on macOS"]
+    end
+
+    CSP --> NI --> CI --> IME
+    SANDBOX --> WARN2
+    WARN1 -.->|"low risk: no user input"| NOTE
+            </pre>
+        </div>
+
+        <h3>Security Observations</h3>
+        <ul>
+            <li><strong>No sandbox</strong>: Required by design - the app must position windows at the desktop level, which macOS sandboxing prevents.</li>
+            <li><strong>child_process.exec with AppleScript</strong>: Used in <code>fixMacOSWindowVisibility</code>. The script strings are constructed from hardcoded process name arrays - no user input is interpolated, so command injection risk is effectively zero.</li>
+            <li><strong>shell is imported but unused</strong> in <code>main.js:1</code> - minor dead code.</li>
+        </ul>
+    </section>
+
+    <!-- 10. Client Architecture -->
+    <section id="client-arch">
+        <h2>12. Client Architecture (Renderer)</h2>
+        <div class="diagram-container">
+            <div class="diagram-label">Renderer state, animation engine, and helpers</div>
+            <pre class="mermaid">
+flowchart TB
+    subgraph STMGMT["State Management"]
+        CONFIG_STATE["CONFIG immutable settings"]
+        DROPS_STATE["drops array"]
+        GLOBALS["lastTime globalTime paused"]
+    end
+
+    subgraph DATASRC["Data Sources"]
+        AI_WORDS_DS["AI_WORDS 51 terms"]
+        AI_SAYINGS_DS["AI_SAYINGS 12 phrases"]
+        MATRIX_CHARS_DS["MATRIX_CHARS 46 Katakana"]
+    end
+
+    subgraph ANIMENG["Animation Engine"]
+        INIT["initialize"]
+        DRAW_FN["draw - 30 FPS loop"]
+        RESIZE_FN["resizeCanvas"]
+        INIT_DROPS_FN["initializeDrops"]
+        CREATE_DROP_FN["createDrop"]
+    end
+
+    subgraph RENDHELP["Rendering Helpers"]
+        SET_FONT_FN["setFont cached"]
+        RGBA_FN["rgba color cache"]
+        GET_CHAR_FN["getMatrixChar"]
+        ENCRYPT_FN["getEncryptedChar"]
+    end
+
+    subgraph ERRHAND["Error Handling"]
+        LOG_ERROR["logError throttled"]
+        ERROR_DISPLAY["createErrorDisplay"]
+    end
+
+    subgraph CANVOUT["Canvas Output"]
+        CANVAS_EL["canvas matrix 2D"]
+    end
+
+    CONFIG_STATE --> DRAW_FN
+    DROPS_STATE --> DRAW_FN
+    AI_WORDS_DS --> CREATE_DROP_FN
+    AI_SAYINGS_DS --> CREATE_DROP_FN
+    MATRIX_CHARS_DS --> GET_CHAR_FN
+    INIT --> RESIZE_FN --> INIT_DROPS_FN --> DRAW_FN
+    INIT_DROPS_FN --> CREATE_DROP_FN
+    DRAW_FN --> SET_FONT_FN
+    DRAW_FN --> RGBA_FN
+    DRAW_FN --> ENCRYPT_FN
+    DRAW_FN --> CANVAS_EL
+    DRAW_FN -.-> LOG_ERROR --> ERROR_DISPLAY
+    GLOBALS --> DRAW_FN
+            </pre>
+        </div>
+
+        <h3>Typing State Machine</h3>
+        <p>Each drop has a three-state cycle: <code>typing</code> &rarr; <code>paused</code> &rarr; <code>resetting</code> &rarr; <code>typing</code></p>
+        <ol>
+            <li><strong>typing</strong>: Characters appear one at a time (150ms interval), initially encrypted as Katakana, then "decrypting" to reveal the actual text</li>
+            <li><strong>paused</strong>: Full text visible for 2000ms, trail begins fading in</li>
+            <li><strong>resetting</strong>: Characters disappear one at a time (75ms interval), then a new word is chosen</li>
+        </ol>
+    </section>
+
+    <!-- 11. CI/CD -->
+    <section id="cicd">
+        <h2>13. CI/CD and Build Pipeline</h2>
+        <p>There is <strong>no CI/CD pipeline</strong> (no GitHub Actions, no <code>.gitlab-ci.yml</code>, etc.). Building and deployment are handled entirely through shell scripts.</p>
+
+        <table>
+            <tr><th>Script</th><th>Purpose</th><th>Command</th></tr>
+            <tr><td><code>npm start</code></td><td>Run in dev mode</td><td><code>electron .</code></td></tr>
+            <tr><td><code>npm run build</code></td><td>Package as DMG</td><td><code>electron-builder --mac</code></td></tr>
+            <tr><td><code>install.sh</code></td><td>Build + install to /Applications + auto-launch</td><td><code>./install.sh</code></td></tr>
+            <tr><td><code>cleanup.sh</code></td><td>Remove dist/, backup/, clean node_modules</td><td><code>./cleanup.sh</code></td></tr>
+            <tr><td><code>github_deploy.sh</code></td><td>Tag + build + push to GitHub Releases</td><td><code>./github_deploy.sh</code></td></tr>
+        </table>
+
+        <div class="diagram-container">
+            <div class="diagram-label">Build, install, and deploy pipeline</div>
+            <pre class="mermaid">
+flowchart LR
+    subgraph BSCRIPTS["Build Scripts - package.json"]
+        START["npm start - electron ."]
+        BUILD_CMD["npm run build - electron-builder --mac"]
+        PACK["npm run pack - electron-builder --dir"]
+    end
+
+    subgraph SHSCRIPTS["Shell Scripts"]
+        INSTALLSH["install.sh - Build Install Auto-launch"]
+        CLEANUPSH["cleanup.sh - Remove dist and backup"]
+        DEPLOYSH["github_deploy.sh - Tag Build Release"]
+    end
+
+    subgraph BPIPE["Build Pipeline"]
+        NPM_INSTALL["npm install"]
+        EB_BUILD["electron-builder - Package .app and .dmg"]
+        ENTS["entitlements.mac.plist"]
+    end
+
+    subgraph BOUTPUT["Output"]
+        DMG_OUT["dist/DigitalRain.dmg"]
+        APP_OUT["dist/mac/DigitalRain.app"]
+        APPS_DIR["Applications/DigitalRain.app"]
+        GH_RELEASE["GitHub Release - manual via deploy script"]
+    end
+
+    INSTALLSH --> NPM_INSTALL --> EB_BUILD
+    EB_BUILD --> DMG_OUT
+    EB_BUILD --> APP_OUT
+    EB_BUILD --> ENTS
+    INSTALLSH --> APP_OUT -->|"cp"| APPS_DIR
+    DEPLOYSH --> NPM_INSTALL
+    EB_BUILD --> GH_RELEASE
+    CLEANUPSH -->|"rm -rf"| DMG_OUT
+    CLEANUPSH -->|"rm -rf"| APP_OUT
+    START_CMD -.->|"dev mode"| BUILD_CMD
+            </pre>
+        </div>
+    </section>
+
+    <!-- Key Decisions -->
+    <section id="decisions">
+        <h2>14. Key Architectural Decisions</h2>
+        <ol>
+            <li><strong>Desktop-level window positioning</strong>: Uses <code>setAlwaysOnTop(true, 'desktop', -1)</code> to place the window just above the macOS wallpaper but below all apps. This is the core innovation that makes it work as a "live wallpaper."</li>
+            <li><strong>One window per display</strong>: Each connected monitor gets its own <code>BrowserWindow</code> with its own renderer process, allowing independent animation on each screen.</li>
+            <li><strong>Mouse event passthrough</strong>: <code>setIgnoreMouseEvents(true)</code> makes the window completely transparent to user interaction - clicks pass through to whatever app is underneath.</li>
+            <li><strong>AppleScript fallback</strong>: When Electron's window level APIs aren't sufficient (e.g., after Space switching), the app falls back to AppleScript via <code>osascript</code> to force visibility.</li>
+            <li><strong>Canvas 2D over WebGL</strong>: The animation uses the simpler Canvas 2D API rather than WebGL. This is appropriate given the relatively simple rendering requirements (text only) and maximizes compatibility.</li>
+            <li><strong>No external runtime dependencies</strong>: Zero npm runtime dependencies. Everything runs on Electron's built-in Chromium + Node.js.</li>
+        </ol>
+    </section>
+
+    <!-- Risk Areas -->
+    <section id="risks">
+        <h2>15. Risk Areas and Technical Debt</h2>
+        <table>
+            <tr><th>Category</th><th>Location</th><th>Description</th><th>Severity</th></tr>
+            <tr><td><strong>Dead import</strong></td><td><code>main.js:1</code></td><td><code>shell</code> imported but never used</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>No tests</strong></td><td>-</td><td>Zero test files, no test framework configured</td><td><span class="badge badge-medium">Medium</span></td></tr>
+            <tr><td><strong>No linting</strong></td><td>-</td><td>No ESLint, Prettier, or any code quality tooling</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>Hardcoded config</strong></td><td><code>matrix.js:61-87</code></td><td>CONFIG object is not user-configurable at runtime</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>Display change debounce</strong></td><td><code>main.js:489</code></td><td>30-second debounce is extremely long; may feel unresponsive</td><td><span class="badge badge-medium">Medium</span></td></tr>
+            <tr><td><strong>Global state</strong></td><td><code>main.js:10-18</code></td><td>Module-level mutable globals</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>Sandbox disabled</strong></td><td><code>entitlements.mac.plist</code></td><td>Required for functionality but reduces security</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>No error recovery</strong></td><td><code>matrix.js:697</code></td><td><code>initialize()</code> retries on failure via setTimeout, could loop forever</td><td><span class="badge badge-low">Low</span></td></tr>
+            <tr><td><strong>Color cache unbounded</strong></td><td><code>matrix.js:140</code></td><td>colorCache Map grows without eviction - minor memory leak</td><td><span class="badge badge-low">Low</span></td></tr>
+        </table>
+
+        <h3>Recommendations</h3>
+        <ol>
+            <li><strong>Add a preferences UI</strong> or config file to let users adjust CONFIG values (FPS, colors, density) without editing source code.</li>
+            <li><strong>Add basic tests</strong> - at minimum, unit tests for <code>createDrop()</code>, <code>rgba()</code>, and the typing state machine logic.</li>
+            <li><strong>Cap the colorCache</strong> with an LRU eviction policy or periodic clearing.</li>
+            <li><strong>Reduce display change debounce</strong> from 30s to ~3-5s for better responsiveness.</li>
+            <li><strong>Remove unused shell import</strong> from main.js line 1.</li>
+        </ol>
+    </section>
+
+    <!-- Neo4j -->
+    <section id="neo4j">
+        <h2>16. Neo4j Setup Instructions</h2>
+        <p><strong>Prerequisites:</strong> Docker and Docker Compose installed</p>
+
+        <h3>Quick Start</h3>
+        <pre>cd architecture/neo4j
+chmod +x start.sh
+./start.sh</pre>
+
+        <h3>Access</h3>
+        <table>
+            <tr><th>Interface</th><th>URL</th></tr>
+            <tr><td><strong>Browser UI</strong></td><td><code>http://localhost:7474</code></td></tr>
+            <tr><td><strong>Bolt URI</strong></td><td><code>bolt://localhost:7687</code></td></tr>
+            <tr><td><strong>Username</strong></td><td><code>neo4j</code></td></tr>
+            <tr><td><strong>Password</strong></td><td><code>repoanalysis</code></td></tr>
+        </table>
+
+        <h3>Management</h3>
+        <pre><span class="comment"># Stop Neo4j</span>
+cd architecture/neo4j && docker compose down
+
+<span class="comment"># Reset all data</span>
+cd architecture/neo4j && docker compose down -v</pre>
+    </section>
+
+    <!-- Queries -->
+    <section id="queries">
+        <h2>17. Useful Neo4j Queries</h2>
+        <pre><span class="comment">-- Full graph overview</span>
+MATCH (n) RETURN n;
+
+<span class="comment">-- Node type counts</span>
+MATCH (n) RETURN labels(n)[0] AS type, count(*) AS count ORDER BY count DESC;
+
+<span class="comment">-- Function call graph</span>
+MATCH (a:Function)-[:CALLS]->(b:Function)
+RETURN a.name AS caller, b.name AS callee;
+
+<span class="comment">-- Most called functions</span>
+MATCH (f:Function)&lt;-[:CALLS]-(caller:Function)
+RETURN f.name, count(caller) AS call_count ORDER BY call_count DESC;
+
+<span class="comment">-- Event subscription map</span>
+MATCH (f:Function)-[:SUBSCRIBES_TO]->(e:Event)
+RETURN e.name AS event, collect(f.name) AS handlers;
+
+<span class="comment">-- External service usage</span>
+MATCH (f:Function)-[:CALLS_EXTERNAL]->(ext:ExternalService)
+RETURN ext.name, collect(f.name) AS calling_functions;
+
+<span class="comment">-- Impact analysis: If I change matrix.js...</span>
+MATCH (changed:File {path: 'matrix.js'})
+OPTIONAL MATCH (changed)&lt;-[:IMPORTS*1..3]-(affected:File)
+RETURN changed.path, collect(DISTINCT affected.path) AS affected_files;
+
+<span class="comment">-- Files by LOC</span>
+MATCH (f:File) RETURN f.path, f.loc ORDER BY f.loc DESC;</pre>
+    </section>
+
+    <!-- Glossary -->
+    <section id="glossary">
+        <h2>18. Glossary</h2>
+        <table>
+            <tr><th>Term</th><th>Meaning</th></tr>
+            <tr><td><strong>Drop</strong></td><td>A single falling column of text + trailing Katakana characters</td></tr>
+            <tr><td><strong>Trail</strong></td><td>The stream of Katakana characters falling below the typed word</td></tr>
+            <tr><td><strong>Typing state</strong></td><td>Three-phase cycle: typing &rarr; paused &rarr; resetting</td></tr>
+            <tr><td><strong>Decryption effect</strong></td><td>Characters initially appear as random Katakana, then "decrypt" to reveal the actual letter</td></tr>
+            <tr><td><strong>Desktop level</strong></td><td>macOS window level that sits above the wallpaper but below all application windows</td></tr>
+            <tr><td><strong>DPR</strong></td><td>Device Pixel Ratio - used for crisp rendering on Retina/HiDPI displays</td></tr>
+            <tr><td><strong>CONFIG</strong></td><td>Immutable animation settings object in matrix.js</td></tr>
+            <tr><td><strong>Background windows</strong></td><td>The array of BrowserWindows, one per display, that render the animation</td></tr>
+            <tr><td><strong>Pulse</strong></td><td>Sinusoidal brightness oscillation applied to each drop's color</td></tr>
+        </table>
+    </section>
+
+    <!-- File Inventory -->
+    <section id="inventory">
+        <h2>19. File Inventory</h2>
+        <table>
+            <tr><th>File</th><th>LOC</th><th>Type</th><th>Purpose</th></tr>
+            <tr><td><code>main.js</code></td><td>527</td><td>Main process</td><td>Electron app lifecycle, window management, tray, shortcuts</td></tr>
+            <tr><td><code>matrix.js</code></td><td>734</td><td>Renderer</td><td>Canvas animation engine, drop system, typing effect</td></tr>
+            <tr><td><code>index.html</code></td><td>15</td><td>HTML shell</td><td>DOM structure with CSP, loads CSS + JS</td></tr>
+            <tr><td><code>style.css</code></td><td>39</td><td>Stylesheet</td><td>Fullscreen black canvas with crisp rendering</td></tr>
+            <tr><td><code>package.json</code></td><td>46</td><td>Config</td><td>Dependencies, scripts, electron-builder config</td></tr>
+            <tr><td><code>build/entitlements.mac.plist</code></td><td>20</td><td>Config</td><td>macOS security entitlements</td></tr>
+            <tr><td><code>install.sh</code></td><td>45</td><td>Script</td><td>Build and install to /Applications</td></tr>
+            <tr><td><code>cleanup.sh</code></td><td>128</td><td>Script</td><td>Clean build artifacts and backups</td></tr>
+            <tr><td><code>github_deploy.sh</code></td><td>104</td><td>Script</td><td>Tag and deploy to GitHub Releases</td></tr>
+            <tr><td><code>.gitignore</code></td><td>35</td><td>Config</td><td>Git exclusion rules</td></tr>
+            <tr><td><code>README.md</code></td><td>108</td><td>Docs</td><td>User-facing documentation</td></tr>
+            <tr><td><code>LICENSE</code></td><td>21</td><td>Legal</td><td>MIT license</td></tr>
+        </table>
+    </section>
+
+</div>
+
+<script>
+    mermaid.initialize({
+        startOnLoad: true,
+        theme: 'dark',
+        themeVariables: {
+            primaryColor: '#1a2332',
+            primaryTextColor: '#e2e8f0',
+            primaryBorderColor: '#1e3a5f',
+            lineColor: '#22d3ee',
+            secondaryColor: '#111827',
+            tertiaryColor: '#0a0e17',
+            edgeLabelBackground: '#111827',
+            clusterBkg: '#111827',
+            clusterBorder: '#1e3a5f',
+            titleColor: '#22d3ee',
+            nodeTextColor: '#e2e8f0',
+            actorTextColor: '#e2e8f0',
+            actorBkg: '#1a2332',
+            actorBorder: '#1e3a5f',
+            actorLineColor: '#1e3a5f',
+            signalColor: '#22d3ee',
+            signalTextColor: '#e2e8f0',
+            labelBoxBkgColor: '#1a2332',
+            labelBoxBorderColor: '#1e3a5f',
+            labelTextColor: '#e2e8f0',
+            loopTextColor: '#94a3b8',
+            noteBkgColor: '#1e3a5f',
+            noteTextColor: '#e2e8f0',
+            noteBorderColor: '#22d3ee',
+            activationBkgColor: '#1a2332',
+            activationBorderColor: '#22d3ee',
+            sequenceNumberColor: '#0a0e17',
+            entityStroke: '#22d3ee',
+            entityFill: '#1a2332'
+        },
+        flowchart: {
+            useMaxWidth: true,
+            htmlLabels: true,
+            curve: 'basis'
+        },
+        sequence: {
+            useMaxWidth: true,
+            wrap: true
+        },
+        er: {
+            useMaxWidth: true
+        }
+    });
+
+    // Active nav tracking
+    const sections = document.querySelectorAll('section');
+    const navLinks = document.querySelectorAll('.sidebar a');
+
+    const observer = new IntersectionObserver((entries) => {
+        entries.forEach(entry => {
+            if (entry.isIntersecting) {
+                navLinks.forEach(link => link.classList.remove('active'));
+                const activeLink = document.querySelector(`.sidebar a[href="#${entry.target.id}"]`);
+                if (activeLink) activeLink.classList.add('active');
+            }
+        });
+    }, { rootMargin: '-20% 0px -70% 0px' });
+
+    sections.forEach(section => observer.observe(section));
+</script>
+
+</body>
+</html>

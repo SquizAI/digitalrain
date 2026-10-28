@@ -1,0 +1,55 @@
+flowchart TB
+    subgraph "Electron Main Process"
+        APP["app Electron lifecycle"]
+        BWIN["BrowserWindow"]
+        TRAY_MOD["Tray icon"]
+        MENU["Menu builder"]
+        SCREEN["screen detection"]
+        GSHORT["globalShortcut"]
+        DIALOG["dialog"]
+        SHELL["shell unused"]
+    end
+
+    subgraph "Node.js Built-ins"
+        PATH["path"]
+        FS["fs"]
+        EXEC["child_process exec"]
+    end
+
+    subgraph "Renderer Process"
+        CANVAS["Canvas 2D API"]
+        RAF_API["requestAnimationFrame"]
+        PERF["performance.now"]
+        DPR["devicePixelRatio"]
+    end
+
+    subgraph "HTML Shell"
+        HTML["index.html"]
+        CSS["style.css"]
+    end
+
+    subgraph "macOS Platform APIs"
+        APPLESCRIPT["osascript"]
+        LOGIN["setLoginItemSettings"]
+        WLEVEL["setAlwaysOnTop"]
+    end
+
+    APP --> BWIN
+    APP --> TRAY_MOD
+    APP --> SCREEN
+    APP --> GSHORT
+    TRAY_MOD --> MENU
+    BWIN --> HTML
+    APP --> LOGIN
+    BWIN --> WLEVEL
+
+    TRAY_MOD --> PATH
+    TRAY_MOD --> FS
+    APP --> EXEC
+    EXEC --> APPLESCRIPT
+
+    HTML --> CSS
+    HTML --> CANVAS
+    CANVAS --> RAF_API
+    CANVAS --> PERF
+    CANVAS --> DPR

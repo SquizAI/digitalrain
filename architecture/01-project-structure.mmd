@@ -1,0 +1,41 @@
+flowchart TB
+    subgraph ROOT["Root - DigitalRain"]
+        mainjs["main.js - Electron main process"]
+        matrixjs["matrix.js - Renderer process"]
+        indexhtml["index.html - HTML shell"]
+        stylecss["style.css - Fullscreen canvas styles"]
+        pkg["package.json - Project config"]
+        icon_png["icon.png - Tray icon"]
+        app_icon["app-icon.png - Application icon"]
+        icon_icns["icon.icns - macOS icon bundle"]
+        screenshot["screenshot.png"]
+        licfile["LICENSE - MIT"]
+        readmefile["README.md - Documentation"]
+        gitignore[".gitignore - Git exclusions"]
+    end
+
+    subgraph BUILD["build/"]
+        entitlements["entitlements.mac.plist"]
+    end
+
+    subgraph SCRIPTS["Shell Scripts"]
+        installsh["install.sh - Build and install"]
+        cleanupsh["cleanup.sh - Clean build artifacts"]
+        deploysh["github_deploy.sh - GitHub release"]
+    end
+
+    subgraph OUTPUT["Generated Output"]
+        dist["dist/ - Built DMG and app"]
+        nodemod["node_modules/ - Dependencies"]
+        backup["backup/ directories"]
+    end
+
+    mainjs -->|"loads"| indexhtml
+    indexhtml -->|"links"| stylecss
+    indexhtml -->|"loads"| matrixjs
+    mainjs -->|"references"| icon_png
+    pkg -->|"configures"| mainjs
+    pkg -->|"references"| entitlements
+    installsh -->|"runs"| pkg
+    deploysh -->|"runs"| pkg
+    cleanupsh -->|"cleans"| dist

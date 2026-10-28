@@ -1,0 +1,60 @@
+sequenceDiagram
+    participant RAF as requestAnimationFrame
+    participant Draw as draw function
+    participant Canvas as Canvas 2D Context
+    participant Drop as Drop Object
+    participant State as Typing State Machine
+
+    RAF->>Draw: currentTime
+    Draw->>Draw: Check paused flag
+    Draw->>Draw: Frame rate limiter 1000/30ms
+    Draw->>Draw: Calculate deltaTime clamped
+    Draw->>Canvas: fillRect 0,0,w,h clear black
+
+    loop For each drop in drops array
+        Draw->>Drop: Check y greater than canvasHeight+200
+        alt Off screen
+            Draw->>Drop: Reset y, visibleChars, state
+            Draw->>Drop: Regenerate trail + new text
+        else On screen
+            Draw->>State: typingTimer += deltaTime
+
+            alt typingState is typing
+                State->>Drop: visibleChars++ every 150ms
+                Note over State: Until text fully typed
+                State->>Drop: Set typingState = paused
+            else typingState is paused
+                State->>Drop: pauseTimer += deltaTime
+                Note over State: Wait 2000ms
+                State->>Drop: Set typingState = resetting
+            else typingState is resetting
+                State->>Drop: visibleChars-- every 75ms
+                Note over State: Until 0
+                State->>Drop: New text, typingState = typing
+            end
+
+            Draw->>Canvas: setFont fontSize cached
+            Draw->>Draw: Calculate pulse = sin globalTime
+
+            loop For each visible character
+                Draw->>Draw: Calculate decryption progress
+                alt Fully decrypted over 85 percent
+                    Draw->>Canvas: fillText real char bright
+                else Partially decrypted 40-85 percent
+                    Draw->>Canvas: fillText real or katakana
+                else Encrypted under 40 percent
+                    Draw->>Canvas: fillText katakana flickering
+                end
+            end
+
+            opt SHOW_TRAILS enabled
+                loop For each trail position
+                    Draw->>Canvas: fillText katakana fading opacity
+                end
+            end
+
+            Draw->>Drop: y += speed x deltaTime x 0.05
+        end
+    end
+
+    Draw->>RAF: requestAnimationFrame draw

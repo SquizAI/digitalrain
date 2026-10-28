@@ -1,0 +1,85 @@
+version: '3.8'
+
+services:
+  # Neo4j graph database
+  neo4j:
+    image: neo4j:5-community
+    container_name: repo-architecture-graph
+    ports:
+      - "7474:7474"   # Browser UI
+      - "7687:7687"   # Bolt protocol
+    environment:
+      - NEO4J_AUTH=neo4j/repoanalysis
+      - NEO4J_PLUGINS=["apoc"]
+      - NEO4J_apoc_export_file_enabled=true
+      - NEO4J_apoc_import_file_enabled=true
+      - NEO4J_apoc_import_file_use__neo4j__config=true
+      - NEO4J_server_memory_heap_initial__size=512m
+      - NEO4J_server_memory_heap_max__size=1G
+    volumes:
+      - neo4j-data:/data
+      - ./import:/var/lib/neo4j/import
+      - ./scripts:/scripts
+    healthcheck:
+      test: ["CMD", "cypher-shell", "-u", "neo4j", "-p", "repoanalysis", "RETURN 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    restart: unless-stopped
+
+  # One-shot: loads the Cypher graph data into Neo4j
+  graph-loader:
+    image: neo4j:5-community
+    container_name: repo-graph-loader
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    volumes:
+      - ./scripts:/scripts
+    entrypoint: >
+      bash -c "
+        echo 'Waiting for Neo4j to be ready...' &&
+        sleep 5 &&
+        echo 'Loading graph data...' &&
+        cat /scripts/load-graph.cypher | cypher-shell -u neo4j -p repoanalysis -a bolt://neo4j:7687 &&
+        echo 'Loading indexes...' &&
+        cat /scripts/create-indexes.cypher | cypher-shell -u neo4j -p repoanalysis -a bolt://neo4j:7687 &&
+        echo 'Graph loaded successfully!'
+      "
+
+  # Chat interface — Gemini-powered natural language → Cypher
+  chat:
+    build:
+      context: .
+      dockerfile: Dockerfile.chat
+    container_name: repo-architecture-chat
+    ports:
+      - "8080:8080"
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    restart: unless-stopped
+
+  # One-shot: extract architecture from a repo using langextract + Gemini
+  # Usage: docker compose run --rm extractor --repo-path /repo
+  extractor:
+    build:
+      context: .
+      dockerfile: Dockerfile.chat
+    container_name: repo-extractor
+    volumes:
+      - ./scripts:/output
+    environment:
+      - GEMINI_API_KEY=${GEMINI_API_KEY:?set GEMINI_API_KEY in your shell or .env}
+      - NEO4J_URI=bolt://neo4j:7687
+      - NEO4J_USER=neo4j
+      - NEO4J_PASS=repoanalysis
+    depends_on:
+      neo4j:
+        condition: service_healthy
+    entrypoint: ["python3", "extract_and_load.py"]
+    profiles:
+      - extract
+
+volumes:
+  neo4j-data:

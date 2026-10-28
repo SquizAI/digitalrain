@@ -1,0 +1,9 @@
+CREATE INDEX file_path IF NOT EXISTS FOR (f:File) ON (f.path);
+CREATE INDEX module_name IF NOT EXISTS FOR (m:Module) ON (m.name);
+CREATE INDEX function_name IF NOT EXISTS FOR (f:Function) ON (f.name);
+CREATE INDEX entity_name IF NOT EXISTS FOR (e:Entity) ON (e.name);
+CREATE INDEX package_name IF NOT EXISTS FOR (p:Package) ON (p.name);
+CREATE INDEX external_name IF NOT EXISTS FOR (e:ExternalService) ON (e.name);
+CREATE INDEX envvar_key IF NOT EXISTS FOR (e:EnvVar) ON (e.key);
+CREATE INDEX event_name IF NOT EXISTS FOR (e:Event) ON (e.name);
+CREATE INDEX job_name IF NOT EXISTS FOR (j:Job) ON (j.name);

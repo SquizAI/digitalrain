@@ -1,0 +1,36 @@
+flowchart LR
+    subgraph "Build Scripts - package.json"
+        START["npm start - electron ."]
+        BUILD["npm run build - electron-builder --mac"]
+        PACK["npm run pack - electron-builder --dir"]
+    end
+
+    subgraph "Shell Scripts"
+        INSTALL["install.sh - Build Install Auto-launch"]
+        CLEANUP["cleanup.sh - Remove dist and backup"]
+        DEPLOY["github_deploy.sh - Tag Build Release"]
+    end
+
+    subgraph "Build Pipeline"
+        NPM_INSTALL["npm install"]
+        EB_BUILD["electron-builder - Package .app and .dmg"]
+        ENTITLEMENTS["entitlements.mac.plist"]
+    end
+
+    subgraph "Output"
+        DMG["dist/DigitalRain.dmg"]
+        APP["dist/mac/DigitalRain.app"]
+        APPS_DIR["Applications/DigitalRain.app"]
+        GH_RELEASE["GitHub Release - manual via deploy script"]
+    end
+
+    INSTALL --> NPM_INSTALL --> EB_BUILD
+    EB_BUILD --> DMG
+    EB_BUILD --> APP
+    EB_BUILD --> ENTITLEMENTS
+    INSTALL --> APP -->|"cp"| APPS_DIR
+    DEPLOY --> NPM_INSTALL
+    EB_BUILD --> GH_RELEASE
+    CLEANUP -->|"rm -rf"| DMG
+    CLEANUP -->|"rm -rf"| APP
+    START -.->|"dev mode"| BUILD

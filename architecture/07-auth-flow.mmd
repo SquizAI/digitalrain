@@ -1,0 +1,34 @@
+flowchart TB
+    subgraph "Security Model - DigitalRain"
+        direction TB
+        NOTE["No authentication or authorization - local desktop wallpaper app"]
+    end
+
+    subgraph "Content Security Policy - index.html"
+        CSP["default-src self - script-src self - style-src self"]
+    end
+
+    subgraph "Electron Security - main.js"
+        NI["nodeIntegration: false"]
+        CI["contextIsolation: true"]
+        IME["setIgnoreMouseEvents true - No user input accepted"]
+    end
+
+    subgraph "macOS Entitlements"
+        SANDBOX["app-sandbox: false - Not sandboxed"]
+        JIT["allow-jit: true"]
+        UNSIGNED["allow-unsigned-executable-memory: true"]
+        DYLD["allow-dyld-environment-variables: true"]
+        LIBVAL["disable-library-validation: true"]
+        PAGEPROTECT["disable-executable-page-protection: true"]
+    end
+
+    subgraph "Security Concerns"
+        WARN1["exec with AppleScript strings - hardcoded values only"]
+        WARN2["Sandbox disabled - required for desktop-level window access"]
+        WARN3["Hardened runtime disabled - required for Electron on macOS"]
+    end
+
+    CSP --> NI --> CI --> IME
+    SANDBOX --> WARN2
+    WARN1 -.->|"low risk: no user input"| NOTE

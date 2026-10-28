@@ -1,0 +1,55 @@
+flowchart LR
+    subgraph "App Startup"
+        LAUNCH["app.whenReady"]
+        AUTO["setupAutoLaunch"]
+        TRAY["createTray"]
+        WINDOWS["recreateMatrixWindows"]
+        SHORTCUTS["globalShortcut.register"]
+        LISTENERS["screen event listeners"]
+        CHECKERS["setupVisibilityChecker"]
+    end
+
+    subgraph "Window Creation - main.js"
+        GET_DISPLAYS["screen.getAllDisplays"]
+        CREATE_WIN["createMatrixWindow"]
+        LOAD_HTML["win.loadFile index.html"]
+        SET_LEVEL["setAlwaysOnTop desktop level"]
+    end
+
+    subgraph "Renderer - matrix.js"
+        DOM["DOMContentLoaded"]
+        RESIZE["resizeCanvas with DPR scaling"]
+        INIT_DROPS["initializeDrops"]
+        RAF["requestAnimationFrame"]
+        DRAW["draw - Frame rate limiter"]
+    end
+
+    subgraph "User Interactions"
+        TRAY_MENU["Tray Context Menu"]
+        TOGGLE["toggleWallpaperVisibility"]
+        REFRESH["recreateMatrixWindows"]
+        FIX_VIS["fixMacOSWindowVisibility"]
+        ABOUT["showAboutDialog"]
+        QUIT["app.quit"]
+        CLICK["canvas.click - pause/resume"]
+    end
+
+    subgraph "Periodic Tasks"
+        POS_CHECK["verifyWindowPositions - every 5 min"]
+        VIS_CHECK["visibilityCheckInterval - every 60s"]
+        DISPLAY_CHG["handleDisplayChange - 30s debounce"]
+    end
+
+    LAUNCH --> AUTO --> TRAY --> WINDOWS --> SHORTCUTS --> LISTENERS --> CHECKERS
+    WINDOWS --> GET_DISPLAYS --> CREATE_WIN --> LOAD_HTML --> SET_LEVEL
+    LOAD_HTML --> DOM --> RESIZE --> INIT_DROPS --> RAF --> DRAW
+    DRAW -->|"loop"| DRAW
+    TRAY_MENU --> TOGGLE
+    TRAY_MENU --> REFRESH
+    TRAY_MENU --> FIX_VIS
+    TRAY_MENU --> ABOUT
+    TRAY_MENU --> QUIT
+    LISTENERS --> DISPLAY_CHG --> REFRESH
+    POS_CHECK -->|"mismatch"| REFRESH
+    VIS_CHECK -->|"all hidden"| TOGGLE
+    CLICK --> DRAW

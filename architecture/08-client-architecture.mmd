@@ -1,0 +1,54 @@
+flowchart TB
+    subgraph "Renderer Process"
+        direction TB
+
+        subgraph "State Management"
+            CONFIG_STATE["CONFIG immutable settings"]
+            DROPS_STATE["drops array"]
+            GLOBALS["lastTime globalTime paused"]
+        end
+
+        subgraph "Data Sources"
+            AI_WORDS_DS["AI_WORDS 51 terms"]
+            AI_SAYINGS_DS["AI_SAYINGS 12 phrases"]
+            MATRIX_CHARS_DS["MATRIX_CHARS 46 Katakana"]
+        end
+
+        subgraph "Animation Engine"
+            INIT["initialize"]
+            DRAW_FN["draw - 30 FPS loop"]
+            RESIZE_FN["resizeCanvas"]
+            INIT_DROPS_FN["initializeDrops"]
+            CREATE_DROP_FN["createDrop"]
+        end
+
+        subgraph "Rendering Helpers"
+            SET_FONT_FN["setFont cached"]
+            RGBA_FN["rgba color cache"]
+            GET_CHAR_FN["getMatrixChar"]
+            ENCRYPT_FN["getEncryptedChar"]
+        end
+
+        subgraph "Error Handling"
+            LOG_ERROR["logError throttled"]
+            ERROR_DISPLAY["createErrorDisplay"]
+        end
+
+        subgraph "Canvas Output"
+            CANVAS_EL["canvas matrix 2D"]
+        end
+    end
+
+    CONFIG_STATE --> DRAW_FN
+    DROPS_STATE --> DRAW_FN
+    AI_WORDS_DS --> CREATE_DROP_FN
+    AI_SAYINGS_DS --> CREATE_DROP_FN
+    MATRIX_CHARS_DS --> GET_CHAR_FN
+    INIT --> RESIZE_FN --> INIT_DROPS_FN --> DRAW_FN
+    INIT_DROPS_FN --> CREATE_DROP_FN
+    DRAW_FN --> SET_FONT_FN
+    DRAW_FN --> RGBA_FN
+    DRAW_FN --> ENCRYPT_FN
+    DRAW_FN --> CANVAS_EL
+    DRAW_FN -.-> LOG_ERROR --> ERROR_DISPLAY
+    GLOBALS --> DRAW_FN
